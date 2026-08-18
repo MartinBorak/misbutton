@@ -102,7 +102,8 @@ export function useGameRound() {
       finalClicks.value = res.clicks
       qualifies.value = res.qualifies
       rank.value = res.rank
-    } catch {
+    } catch (err) {
+      console.error('Round submission failed:', err)
       errorMessage.value = 'Could not submit your score.'
     } finally {
       resultReady.value = true
