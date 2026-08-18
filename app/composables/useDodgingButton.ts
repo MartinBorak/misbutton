@@ -61,7 +61,7 @@ export function useDodgingButton() {
     }
     hitTimeout = setTimeout(() => {
       isHit.value = false
-    }, 500)
+    }, 1500) // matches the hit-ring CSS animation duration in main.css
   }
 
   function handlePointerDown(e: PointerEvent): boolean {

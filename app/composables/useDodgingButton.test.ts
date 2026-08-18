@@ -108,7 +108,7 @@ describe('useDodgingButton', () => {
     dodge.handlePointerDown({ clientX: dodge.x.value, clientY: dodge.y.value } as PointerEvent)
 
     expect(dodge.isHit.value).toBe(true) // requestAnimationFrame stub runs synchronously
-    vi.advanceTimersByTime(500)
+    vi.advanceTimersByTime(1500)
     expect(dodge.isHit.value).toBe(false)
     dodge.stop()
   })
