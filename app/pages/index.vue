@@ -62,22 +62,13 @@
 
     <template v-else>
       <GameHud
-        v-if="phase === 'playing'"
         :time-remaining-ms="timeRemainingMs"
         :clicks="liveClicks"
         :theme="theme"
+        :entries="leaderboard.entries.value"
+        :show-stats="phase === 'playing'"
         @toggle-theme="toggle"
       />
-
-      <button
-        v-else
-        class="theme-toggle theme-toggle--corner"
-        type="button"
-        :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-        @click="toggle"
-      >
-        {{ theme === 'dark' ? '☀️' : '🌙' }}
-      </button>
 
       <DodgeButton
         v-if="phase === 'playing'"
@@ -118,13 +109,6 @@
         {{ errorMessage }}
       </p>
     </template>
-
-    <div
-      v-if="pointerCapable !== null && phase !== 'playing'"
-      class="leaderboard--floating"
-    >
-      <LeaderboardPanel :entries="leaderboard.entries.value" />
-    </div>
 
     <NameEntryModal
       :show="awaitingName"
