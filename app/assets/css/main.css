@@ -70,19 +70,25 @@ button {
   top: 0;
   left: 0;
   right: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 14px 20px;
   z-index: 10;
   pointer-events: none;
 }
 
-.hud__group {
+.hud__leaderboard {
+  justify-self: start;
+}
+
+.hud__stats {
   display: flex;
   align-items: center;
   gap: 10px;
+  justify-self: center;
+  grid-column: 2;
 }
 
 .hud__stat {
@@ -112,6 +118,8 @@ button {
 }
 
 .theme-toggle {
+  justify-self: end;
+  grid-column: 3;
   display: flex;
   align-items: center;
   justify-content: center;

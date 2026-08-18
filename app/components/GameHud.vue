@@ -16,26 +16,30 @@
 
 <template>
   <div class="hud">
-    <div class="hud__group">
-      <template v-if="showStats">
-        <div class="hud__stat">
-          <span class="hud__stat-label">Time</span>
+    <LeaderboardPanel
+      class="hud__leaderboard"
+      :entries="entries"
+    />
 
-          <span
-            class="hud__stat-value"
-            :class="{ 'hud__stat-value--urgent': urgent }"
-            >{{ seconds }}</span
-          >
-        </div>
+    <div
+      v-if="showStats"
+      class="hud__stats"
+    >
+      <div class="hud__stat">
+        <span class="hud__stat-label">Time</span>
 
-        <div class="hud__stat">
-          <span class="hud__stat-label">Clicks</span>
+        <span
+          class="hud__stat-value"
+          :class="{ 'hud__stat-value--urgent': urgent }"
+          >{{ seconds }}</span
+        >
+      </div>
 
-          <span class="hud__stat-value">{{ clicks }}</span>
-        </div>
-      </template>
+      <div class="hud__stat">
+        <span class="hud__stat-label">Clicks</span>
 
-      <LeaderboardPanel :entries="entries" />
+        <span class="hud__stat-value">{{ clicks }}</span>
+      </div>
     </div>
 
     <button
