@@ -405,7 +405,7 @@ button {
   box-shadow: var(--shadow-card);
   color: var(--color-danger);
   font-size: 13px;
-  z-index: 12;
+  z-index: 30;
 }
 
 .result-pending {
