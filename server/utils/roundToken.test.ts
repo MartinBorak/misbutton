@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { stubRuntimeConfig } from '~~/tests/helpers/nuxtGlobals'
 
 stubRuntimeConfig('test-secret')
-const { issueRoundToken, verifyRoundToken } = await import('~~/server/utils/roundToken')
+const { issueRoundToken, verifyRoundToken } = await import('./roundToken')
 
 describe('issueRoundToken / verifyRoundToken', () => {
   it('round-trips: a freshly issued token verifies and carries the original data', () => {

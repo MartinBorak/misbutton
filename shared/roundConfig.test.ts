@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ROUND_MS } from '~~/shared/roundConfig'
+import { ROUND_MS } from './roundConfig'
 
 describe('ROUND_MS', () => {
   it('is a positive number of milliseconds', () => {

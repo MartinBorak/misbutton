@@ -3,8 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { stubStorage } from '~~/tests/helpers/nuxtGlobals'
 
 stubStorage()
-const { getTop, sanitizeName, submitEntry, wouldQualify } =
-  await import('~~/server/utils/leaderboardStore')
+const { getTop, sanitizeName, submitEntry, wouldQualify } = await import('./leaderboardStore')
 
 describe('sanitizeName', () => {
   it('rejects non-string input', () => {

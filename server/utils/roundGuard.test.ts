@@ -4,7 +4,7 @@ import { stubStorage } from '~~/tests/helpers/nuxtGlobals'
 
 stubStorage()
 const { checkRateLimit, getRoundResult, markRoundClaimed, markRoundUsed } =
-  await import('~~/server/utils/roundGuard')
+  await import('./roundGuard')
 
 describe('round result tracking', () => {
   beforeEach(() => {

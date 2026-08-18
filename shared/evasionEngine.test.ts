@@ -6,7 +6,7 @@ import {
   simulateRound,
   wrappedDelta,
   type Vec2,
-} from '~~/shared/evasionEngine'
+} from './evasionEngine'
 
 describe('createRng', () => {
   it('is deterministic for a given seed', () => {
