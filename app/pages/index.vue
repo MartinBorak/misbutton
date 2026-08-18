@@ -15,7 +15,7 @@
     resultReady,
     dodgeX,
     dodgeY,
-    dodgeIsHit,
+    dodgeRipples,
     dodgeBounds,
     dodgeRadius,
     dodgeDebugInfo,
@@ -78,7 +78,7 @@
         v-if="phase === 'playing'"
         :x="dodgeX"
         :y="dodgeY"
-        :is-hit="dodgeIsHit"
+        :ripples="dodgeRipples"
         :bounds="dodgeBounds"
         :radius="dodgeRadius"
         @pointerdown="handlePointerDown"

@@ -142,7 +142,7 @@ export function useGameRound() {
     resultReady,
     dodgeX: dodge.x,
     dodgeY: dodge.y,
-    dodgeIsHit: dodge.isHit,
+    dodgeRipples: dodge.ripples,
     dodgeBounds: dodge.bounds,
     dodgeRadius: dodge.radius,
     dodgeDebugInfo: dodge.debugInfo,

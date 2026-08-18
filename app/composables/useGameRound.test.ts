@@ -16,7 +16,7 @@ function createFakeDodge() {
   return {
     x: ref(0),
     y: ref(0),
-    isHit: ref(false),
+    ripples: ref([]),
     clicks: ref(0),
     bounds: ref({ width: 0, height: 0 }),
     start: vi.fn(),

@@ -1,3 +1,4 @@
+import { createEvasionEngine } from '#shared/evasionEngine'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -92,30 +93,30 @@ describe('useDodgingButton', () => {
     dodge.stop()
   })
 
-  it('curves through an offset point instead of moving in a straight line', () => {
+  it('tracks the engine position exactly, tick by tick', () => {
+    // The glide itself now lives in shared/evasionEngine.ts (curve coverage
+    // is in evasionEngine.test.ts) — the composable's only job is to mirror
+    // it, so what's rendered is always exactly what hit-testing/evasion see.
     useTickTimers()
-    vi.spyOn(Math, 'random').mockReturnValue(1) // maximum, deterministic bulge
     const dodge = useDodgingButton()
     dodge.start(1, BOUNDS)
+    dodge.handlePointerDown({ clientX: dodge.x.value, clientY: dodge.y.value } as PointerEvent)
 
-    const before = { x: dodge.x.value, y: dodge.y.value }
-    dodge.handlePointerDown({ clientX: before.x, clientY: before.y } as PointerEvent)
+    for (let i = 0; i < 10; i++) {
+      vi.advanceTimersByTime(TICK_MS)
+    }
 
-    vi.advanceTimersByTime(TICK_MS * 10) // partway through the glide
-    const mid = { x: dodge.x.value, y: dodge.y.value }
-    vi.advanceTimersByTime(TICK_MS * 30) // let it fully settle at the target
-    const after = { x: dodge.x.value, y: dodge.y.value }
+    const mirror = createEvasionEngine({ seed: 1, bounds: BOUNDS })
+    const target1 = mirror.getCenter()
+    mirror.testHit(target1.x, target1.y)
+    for (let i = 0; i < 10; i++) {
+      mirror.step({ x: BOUNDS.width / 2, y: BOUNDS.height / 2 })
+    }
+    const expected = mirror.getRawCenter()
+
+    expect(dodge.x.value).toBe(expected.x)
+    expect(dodge.y.value).toBe(expected.y)
     dodge.stop()
-
-    // Perpendicular distance from `mid` to the straight line between
-    // `before` and `after` — a straight-line glide would put this near 0.
-    const abx = after.x - before.x
-    const aby = after.y - before.y
-    const lineLen = Math.hypot(abx, aby)
-    const cross = Math.abs((mid.x - before.x) * aby - (mid.y - before.y) * abx)
-    const perpDist = lineLen > 0 ? cross / lineLen : 0
-
-    expect(perpDist).toBeGreaterThan(2)
   })
 
   it('shrinks radius after a hit and uses the shrunk radius for the next hit test', () => {
@@ -152,15 +153,58 @@ describe('useDodgingButton', () => {
     expect(log.hits).toEqual([{ tick: 3, x: hitX, y: hitY }])
   })
 
-  it('flashes isHit on a successful hit and clears it after the timeout', () => {
+  it('adds a ripple on a successful hit and removes it after the animation duration', () => {
     useTickTimers()
     const dodge = useDodgingButton()
     dodge.start(1, BOUNDS)
     dodge.handlePointerDown({ clientX: dodge.x.value, clientY: dodge.y.value } as PointerEvent)
 
-    expect(dodge.isHit.value).toBe(true) // requestAnimationFrame stub runs synchronously
+    expect(dodge.ripples.value.length).toBe(1)
     vi.advanceTimersByTime(1500)
-    expect(dodge.isHit.value).toBe(false)
+    expect(dodge.ripples.value.length).toBe(0)
+    dodge.stop()
+  })
+
+  it('suppresses a hit ripple triggered in the first half of the previous one, but allows one after the halfway point', () => {
+    // Regression coverage for the debounce added this session: a hit
+    // landing early just restarted the ring back to scale 1, so rapid hits
+    // made it look like nothing was happening. Now an early hit is dropped
+    // (the existing ripple keeps playing undisturbed) while a hit past the
+    // halfway point starts a second ripple that plays alongside the first.
+    useTickTimers()
+    const dodge = useDodgingButton()
+    dodge.start(1, BOUNDS)
+
+    // A shadow engine driven through the exact same sequence of hits/ticks
+    // as the real one (same seed/bounds, same cursor every step) — since
+    // that makes it deterministically identical, its position tells us
+    // exactly where the next click needs to land, without
+    // useDodgingButton having to expose its internal engine.
+    const mirror = createEvasionEngine({ seed: 1, bounds: BOUNDS })
+    const mirrorCursor = { x: BOUNDS.width / 2, y: BOUNDS.height / 2 }
+    function advanceBoth(ticks: number) {
+      for (let i = 0; i < ticks; i++) {
+        vi.advanceTimersByTime(TICK_MS)
+        mirror.step(mirrorCursor)
+      }
+    }
+
+    const target1 = mirror.getCenter()
+    dodge.handlePointerDown({ clientX: target1.x, clientY: target1.y } as PointerEvent)
+    mirror.testHit(target1.x, target1.y)
+    expect(dodge.ripples.value.length).toBe(1)
+
+    advanceBoth(10) // 500ms since the first ripple — still its first half
+    const target2 = mirror.getCenter()
+    dodge.handlePointerDown({ clientX: target2.x, clientY: target2.y } as PointerEvent)
+    mirror.testHit(target2.x, target2.y)
+    expect(dodge.ripples.value.length).toBe(1) // suppressed
+
+    advanceBoth(10) // 1000ms since the first ripple — past the halfway point
+    const target3 = mirror.getCenter()
+    dodge.handlePointerDown({ clientX: target3.x, clientY: target3.y } as PointerEvent)
+    expect(dodge.ripples.value.length).toBe(2) // allowed, overlaps the first
+
     dodge.stop()
   })
 

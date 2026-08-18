@@ -2,7 +2,11 @@
   const props = defineProps<{
     x: number
     y: number
-    isHit: boolean
+    /** Ids of the hit-ring ripples currently animating (see
+     *  useDodgingButton.ts) — rendered as one overlay per id so a hit in the
+     *  second half of an existing ripple can overlap it instead of
+     *  restarting it. */
+    ripples: number[]
     bounds: { width: number; height: number }
     /** Current hit-radius from the engine (shrinks with each click, see
      *  shared/evasionEngine.ts) — drives both the windowing math below and
@@ -63,13 +67,18 @@
       v-for="c in copies"
       :key="c.key"
       class="dodge-button"
-      :class="{ 'is-hit': isHit }"
       :style="{ '--x': `${c.x}px`, '--y': `${c.y}px`, '--button-diameter': `${radius * 2}px` }"
       type="button"
       :aria-label="c.visible ? 'Catch me!' : undefined"
       :aria-hidden="c.visible ? undefined : true"
       :tabindex="c.visible ? undefined : -1"
       @pointerdown.prevent="$emit('pointerdown', $event)"
-    />
+    >
+      <span
+        v-for="r in ripples"
+        :key="r"
+        class="dodge-button__ripple"
+      />
+    </button>
   </div>
 </template>
