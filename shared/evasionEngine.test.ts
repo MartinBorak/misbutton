@@ -123,18 +123,25 @@ describe('createEvasionEngine', () => {
     expect(engine.getCenter()).toEqual(afterFirstDodge)
   })
 
-  it('moves by a distance within [dodgeMinDist, dodgeMaxDist] on a dodge', () => {
+  it('moves by a distance within [dodgeMinDistFrac, dodgeMaxDistFrac] * min(bounds) on a dodge', () => {
+    // bounds is 400x300, so the 300 min dimension makes the expected
+    // absolute range [0.2, 0.3] * 300 = [60, 90].
     const engine = createEvasionEngine({
       seed: 3,
       bounds,
-      config: { reactionDelayTicks: 0, cooldownTicks: 0, dodgeMinDist: 50, dodgeMaxDist: 80 },
+      config: {
+        reactionDelayTicks: 0,
+        cooldownTicks: 0,
+        dodgeMinDistFrac: 0.2,
+        dodgeMaxDistFrac: 0.3,
+      },
     })
     const before = engine.getCenter()
     engine.step({ x: before.x + 5, y: before.y })
     const after = engine.getCenter()
     const dist = Math.hypot(after.x - before.x, after.y - before.y)
-    expect(dist).toBeGreaterThanOrEqual(50 - 1e-9)
-    expect(dist).toBeLessThanOrEqual(80 + 1e-9)
+    expect(dist).toBeGreaterThanOrEqual(60 - 1e-9)
+    expect(dist).toBeLessThanOrEqual(90 + 1e-9)
   })
 
   it('moves getRawCenter() by the true dodge distance, unclamped, even past half the bounds', () => {
@@ -143,18 +150,25 @@ describe('createEvasionEngine', () => {
     // follows it directly for on-screen continuity instead of guessing a
     // wrapped position's shortest path. There's therefore no need to cap
     // dodge distance at half the bounds the way getCenter() effectively is.
+    // bounds is 400x300, so fractions of 4/8 give an absolute range of
+    // [1200, 2400] — comfortably past half of either bounds dimension.
     const engine = createEvasionEngine({
       seed: 3,
       bounds,
-      config: { reactionDelayTicks: 0, cooldownTicks: 0, dodgeMinDist: 1000, dodgeMaxDist: 2000 },
+      config: {
+        reactionDelayTicks: 0,
+        cooldownTicks: 0,
+        dodgeMinDistFrac: 4,
+        dodgeMaxDistFrac: 8,
+      },
     })
     for (let i = 0; i < 20; i++) {
       const before = engine.getRawCenter()
       engine.step({ x: before.x + 5, y: before.y })
       const after = engine.getRawCenter()
       const dist = Math.hypot(after.x - before.x, after.y - before.y)
-      expect(dist).toBeGreaterThanOrEqual(1000 - 1e-9)
-      expect(dist).toBeLessThanOrEqual(2000 + 1e-9)
+      expect(dist).toBeGreaterThanOrEqual(1200 - 1e-9)
+      expect(dist).toBeLessThanOrEqual(2400 + 1e-9)
     }
   })
 

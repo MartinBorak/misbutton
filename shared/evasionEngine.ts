@@ -25,9 +25,16 @@ export interface EngineConfig {
   triggerRadius: number
   reactionDelayTicks: number
   cooldownTicks: number
-  dodgeMinDist: number
-  dodgeMaxDist: number
+  /** Dodge distance, as a fraction of the smaller bounds dimension — not an
+   *  absolute pixel count — so movement covers the same relative amount of
+   *  screen on any device instead of favoring a bigger or smaller one. */
+  dodgeMinDistFrac: number
+  dodgeMaxDistFrac: number
   coneHalfAngleRad: number
+  /** How strongly a dodge is pulled toward the field center on top of
+   *  fleeing the cursor: 0 = pure flee, 1 = ignores the cursor and always
+   *  heads for center. Keeps the button from congregating near the edges. */
+  centerPullWeight: number
 }
 
 export const TICK_MS = 50
@@ -38,9 +45,10 @@ export const DEFAULT_CONFIG: EngineConfig = {
   triggerRadius: 90,
   reactionDelayTicks: 2, // ~100ms
   cooldownTicks: 4, // ~200ms
-  dodgeMinDist: 504,
-  dodgeMaxDist: 966,
+  dodgeMinDistFrac: 0.5,
+  dodgeMaxDistFrac: 1.0,
   coneHalfAngleRad: Math.PI / 4, // ±45°
+  centerPullWeight: 0.25,
 }
 
 /** mulberry32 — small, fast, deterministic PRNG seeded by a single integer. */
@@ -100,9 +108,30 @@ function dodgeOffset(
 ): Vec2 {
   const { x: dx, y: dy } = wrappedVec(center, awayFrom, bounds)
   const mag = Math.hypot(dx, dy)
-  const baseAngle = mag < 1e-6 ? rng() * Math.PI * 2 : Math.atan2(dy, dx)
+  const fleeAngle = mag < 1e-6 ? rng() * Math.PI * 2 : Math.atan2(dy, dx)
+
+  // Blend the flee direction with a small pull toward the field center
+  // (both as unit vectors, so the blend stays direction-only) — otherwise
+  // repeatedly fleeing the cursor tends to walk the button into a corner
+  // and leave it hugging the edges. `center` is already canonical (in
+  // [0, bounds)), so the direct vector to the middle is already the
+  // shortest one — no wrap-aware math needed here.
+  const toCenter = { x: bounds.width / 2 - center.x, y: bounds.height / 2 - center.y }
+  const toCenterMag = Math.hypot(toCenter.x, toCenter.y)
+  const flee = { x: Math.cos(fleeAngle), y: Math.sin(fleeAngle) }
+  const pull =
+    toCenterMag < 1e-6 ? flee : { x: toCenter.x / toCenterMag, y: toCenter.y / toCenterMag }
+  const blended = {
+    x: flee.x * (1 - config.centerPullWeight) + pull.x * config.centerPullWeight,
+    y: flee.y * (1 - config.centerPullWeight) + pull.y * config.centerPullWeight,
+  }
+  const blendedMag = Math.hypot(blended.x, blended.y)
+  const baseAngle = blendedMag < 1e-6 ? fleeAngle : Math.atan2(blended.y, blended.x)
+
   const angle = baseAngle + (rng() * 2 - 1) * config.coneHalfAngleRad
-  const dist = config.dodgeMinDist + rng() * (config.dodgeMaxDist - config.dodgeMinDist)
+  const distFrac =
+    config.dodgeMinDistFrac + rng() * (config.dodgeMaxDistFrac - config.dodgeMinDistFrac)
+  const dist = distFrac * Math.min(bounds.width, bounds.height)
   return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist }
 }
 
