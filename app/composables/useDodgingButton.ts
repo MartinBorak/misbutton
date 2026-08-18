@@ -1,6 +1,7 @@
 import {
   createEvasionEngine,
   TICK_MS,
+  wrappedDelta,
   type Bounds,
   type EvasionEngine,
   type Vec2,
@@ -18,6 +19,7 @@ export function useDodgingButton() {
   const y = ref(0)
   const isHit = ref(false)
   const clicks = ref(0)
+  const bounds = ref<Bounds>({ width: 0, height: 0 })
 
   let engine: EvasionEngine | null = null
   let intervalId: ReturnType<typeof setInterval> | null = null
@@ -30,14 +32,23 @@ export function useDodgingButton() {
     cursor = { x: e.clientX, y: e.clientY }
   }
 
+  // The engine's center is always wrapped into [0, bounds) — snapping the
+  // rendered position straight to that would show a dodge through one edge
+  // as a jump to some unrelated point instead of continuing off-screen.
+  // Nudge the displayed x/y by the shortest wrapped delta from where it
+  // last was, so it keeps sliding the same direction through the edge; see
+  // DodgeButton.vue for how that's rendered without ever going invisible.
+  function setDisplayPosition(center: Vec2) {
+    x.value += wrappedDelta(center.x - x.value, bounds.value.width)
+    y.value += wrappedDelta(center.y - y.value, bounds.value.height)
+  }
+
   function tick() {
     if (!engine) {
       return
     }
     samples.push([cursor.x, cursor.y])
-    const center = engine.step(cursor)
-    x.value = center.x
-    y.value = center.y
+    setDisplayPosition(engine.step(cursor))
   }
 
   function triggerHitEffect() {
@@ -67,19 +78,18 @@ export function useDodgingButton() {
 
     hits.push({ tick: tickIndex, x: hitX, y: hitY })
     clicks.value++
-    const center = engine.getCenter()
-    x.value = center.x
-    y.value = center.y
+    setDisplayPosition(engine.getCenter())
     triggerHitEffect()
     return true
   }
 
-  function start(seed: number, bounds: Bounds) {
+  function start(seed: number, roundBounds: Bounds) {
     samples = []
     hits = []
     clicks.value = 0
-    cursor = { x: bounds.width / 2, y: bounds.height / 2 }
-    engine = createEvasionEngine({ seed, bounds })
+    bounds.value = roundBounds
+    cursor = { x: roundBounds.width / 2, y: roundBounds.height / 2 }
+    engine = createEvasionEngine({ seed, bounds: roundBounds })
     const center = engine.getCenter()
     x.value = center.x
     y.value = center.y
@@ -107,5 +117,5 @@ export function useDodgingButton() {
     window.removeEventListener('pointermove', onPointerMove)
   })
 
-  return { x, y, isHit, clicks, start, stop, handlePointerDown }
+  return { x, y, isHit, clicks, bounds, start, stop, handlePointerDown }
 }

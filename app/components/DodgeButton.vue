@@ -1,15 +1,72 @@
 <script setup lang="ts">
-  defineProps<{ x: number; y: number; isHit: boolean }>()
+  import { DEFAULT_CONFIG } from '#shared/evasionEngine'
+
+  const props = defineProps<{
+    x: number
+    y: number
+    isHit: boolean
+    bounds: { width: number; height: number }
+  }>()
   defineEmits<{ pointerdown: [e: PointerEvent] }>()
+
+  const RADIUS = DEFAULT_CONFIG.buttonRadius
+
+  // The play field wraps (see shared/evasionEngine.ts), and x/y are kept
+  // continuous with the button's on-screen trajectory rather than snapped to
+  // the engine's internally-wrapped position — otherwise a dodge through one
+  // edge would jump to some unrelated point instead of sliding off-screen.
+  // That means x/y can drift arbitrarily far from the visible [0, bounds)
+  // range over a round (e.g. repeatedly cornering it against the same edge
+  // wraps it further each time), so the grid of rendered copies is centered
+  // on however far it's *currently* drifted (k0x/k0y below), not a fixed
+  // window around 0 — otherwise the on-screen copy can end up outside the
+  // window and the button vanishes entirely.
+  //
+  // Keying each copy by its actual offset (not array index) is what makes
+  // this safe: when the window shifts by one step, the two cells that
+  // stay in range keep their DOM identity and keep transitioning smoothly
+  // off/into view, while the cell that falls out of range unmounts (it was
+  // off-screen already) and any newly-in-range cell mounts fresh (also
+  // off-screen at first, so appearing without a transition is unnoticeable).
+  function centerStep(pos: number, size: number): number {
+    const canonical = ((pos % size) + size) % size
+    return Math.round((canonical - pos) / size)
+  }
+
+  const copies = computed(() => {
+    const { width, height } = props.bounds
+    if (!width || !height) {
+      return [{ key: '0,0', x: props.x, y: props.y, visible: true }]
+    }
+    const k0x = centerStep(props.x, width)
+    const k0y = centerStep(props.y, height)
+    const result: { key: string; x: number; y: number; visible: boolean }[] = []
+    for (const ky of [k0y - 1, k0y, k0y + 1]) {
+      for (const kx of [k0x - 1, k0x, k0x + 1]) {
+        const cx = props.x + kx * width
+        const cy = props.y + ky * height
+        const visible =
+          cx + RADIUS > 0 && cx - RADIUS < width && cy + RADIUS > 0 && cy - RADIUS < height
+        result.push({ key: `${kx},${ky}`, x: cx, y: cy, visible })
+      }
+    }
+    return result
+  })
 </script>
 
 <template>
-  <button
-    class="dodge-button"
-    :class="{ 'is-hit': isHit }"
-    :style="{ '--x': `${x}px`, '--y': `${y}px` }"
-    type="button"
-    aria-label="Catch me!"
-    @pointerdown.prevent="$emit('pointerdown', $event)"
-  />
+  <div class="dodge-button-group">
+    <button
+      v-for="c in copies"
+      :key="c.key"
+      class="dodge-button"
+      :class="{ 'is-hit': isHit }"
+      :style="{ '--x': `${c.x}px`, '--y': `${c.y}px` }"
+      type="button"
+      :aria-label="c.visible ? 'Catch me!' : undefined"
+      :aria-hidden="c.visible ? undefined : true"
+      :tabindex="c.visible ? undefined : -1"
+      @pointerdown.prevent="$emit('pointerdown', $event)"
+    />
+  </div>
 </template>

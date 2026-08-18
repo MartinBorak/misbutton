@@ -15,6 +15,7 @@
     dodgeX,
     dodgeY,
     dodgeIsHit,
+    dodgeBounds,
     handlePointerDown,
     startRound,
     claim,
@@ -75,6 +76,7 @@
         :x="dodgeX"
         :y="dodgeY"
         :is-hit="dodgeIsHit"
+        :bounds="dodgeBounds"
         @pointerdown="handlePointerDown"
       />
 
