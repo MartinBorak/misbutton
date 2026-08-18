@@ -41,12 +41,16 @@ export function useGameRound() {
   let countdownId: ReturnType<typeof setInterval> | null = null
 
   function clearCountdown() {
-    if (countdownId) clearInterval(countdownId)
+    if (countdownId) {
+      clearInterval(countdownId)
+    }
     countdownId = null
   }
 
   async function startRound() {
-    if (phase.value === 'starting' || phase.value === 'playing') return
+    if (phase.value === 'starting' || phase.value === 'playing') {
+      return
+    }
     phase.value = 'starting'
     errorMessage.value = ''
     qualifies.value = false
@@ -71,7 +75,9 @@ export function useGameRound() {
       countdownId = setInterval(() => {
         const remaining = deadline - Date.now()
         timeRemainingMs.value = Math.max(remaining, 0)
-        if (remaining <= 0) endRound()
+        if (remaining <= 0) {
+          endRound()
+        }
       }, 100)
     } catch {
       phase.value = 'idle'
@@ -80,7 +86,9 @@ export function useGameRound() {
   }
 
   async function endRound() {
-    if (phase.value !== 'playing') return
+    if (phase.value !== 'playing') {
+      return
+    }
     clearCountdown()
     const log = dodge.stop()
     finalClicks.value = dodge.clicks.value

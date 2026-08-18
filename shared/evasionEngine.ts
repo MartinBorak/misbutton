@@ -129,7 +129,9 @@ export function createEvasionEngine(opts: {
     },
     testHit(x: number, y: number): boolean {
       const dist = Math.hypot(x - center.x, y - center.y)
-      if (dist > config.buttonRadius) return false
+      if (dist > config.buttonRadius) {
+        return false
+      }
       center = dodgeTarget(center, { x, y }, rng, opts.bounds, config)
       lastDodgeTick = tick
       pendingReadyAtTick = null
@@ -166,9 +168,7 @@ export function simulateRound(params: {
     initialCenter: params.initialCenter,
   })
 
-  const order = params.hits
-    .map((h, i) => ({ h, i }))
-    .sort((a, b) => a.h.tick - b.h.tick)
+  const order = params.hits.map((h, i) => ({ h, i })).sort((a, b) => a.h.tick - b.h.tick)
   const hitResults: boolean[] = new Array(params.hits.length).fill(false)
 
   let hi = 0

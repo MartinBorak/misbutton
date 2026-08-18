@@ -17,7 +17,9 @@ function sign(json: string, secret: string): string {
 function timingSafeEqualStr(a: string, b: string): boolean {
   const ab = Buffer.from(a)
   const bb = Buffer.from(b)
-  if (ab.length !== bb.length) return false
+  if (ab.length !== bb.length) {
+    return false
+  }
   return timingSafeEqual(ab, bb)
 }
 
@@ -33,11 +35,17 @@ export function issueRoundToken(bounds: { width: number; height: number }, bot: 
 }
 
 export function verifyRoundToken(token: string): RoundPayload | null {
-  if (typeof token !== 'string') return null
+  if (typeof token !== 'string') {
+    return null
+  }
   const [json, sig] = token.split('.')
-  if (!json || !sig) return null
+  if (!json || !sig) {
+    return null
+  }
   const secret = useRuntimeConfig().roundSecret
-  if (!timingSafeEqualStr(sig, sign(json, secret))) return null
+  if (!timingSafeEqualStr(sig, sign(json, secret))) {
+    return null
+  }
   try {
     const payload = JSON.parse(Buffer.from(json, 'base64url').toString('utf8'))
     if (

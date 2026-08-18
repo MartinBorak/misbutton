@@ -61,7 +61,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Implausible click count.' })
   }
 
-  const hits: HitEvent[] = body.hits.map((h) => ({ tick: Number(h?.tick), x: Number(h?.x), y: Number(h?.y) }))
+  const hits: HitEvent[] = body.hits.map((h) => ({
+    tick: Number(h?.tick),
+    x: Number(h?.x),
+    y: Number(h?.y),
+  }))
   if (
     hits.some(
       (h) =>

@@ -28,9 +28,13 @@ export async function getTop(n = TOP_N): Promise<LeaderboardEntry[]> {
 
 export async function wouldQualify(clicks: number): Promise<{ qualifies: boolean; rank: number }> {
   const top = await getTop(TOP_N)
-  if (top.length < TOP_N) return { qualifies: true, rank: top.length + 1 }
+  if (top.length < TOP_N) {
+    return { qualifies: true, rank: top.length + 1 }
+  }
   const beatIndex = top.findIndex((e) => clicks > e.clicks)
-  if (beatIndex === -1) return { qualifies: false, rank: -1 }
+  if (beatIndex === -1) {
+    return { qualifies: false, rank: -1 }
+  }
   return { qualifies: true, rank: beatIndex + 1 }
 }
 
@@ -49,16 +53,19 @@ export async function submitEntry(
   return { qualifies: rank !== -1, rank: rank === -1 ? -1 : rank + 1 }
 }
 
-
 function isControlCharCode(code: number): boolean {
   return code < 32 || code === 127
 }
 
 export function sanitizeName(input: unknown): string | null {
-  if (typeof input !== 'string') return null
+  if (typeof input !== 'string') {
+    return null
+  }
   let visible = ''
   for (const char of input) {
-    if (!isControlCharCode(char.codePointAt(0) || 0)) visible += char
+    if (!isControlCharCode(char.codePointAt(0) || 0)) {
+      visible += char
+    }
   }
   const cleaned = visible.trim().slice(0, MAX_NAME_LENGTH)
   return cleaned.length > 0 ? cleaned : null

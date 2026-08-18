@@ -1,3 +1,8 @@
+<script setup lang="ts">
+  defineProps<{ x: number; y: number; isHit: boolean }>()
+  defineEmits<{ pointerdown: [e: PointerEvent] }>()
+</script>
+
 <template>
   <button
     class="dodge-button"
@@ -8,8 +13,3 @@
     @pointerdown.prevent="$emit('pointerdown', $event)"
   />
 </template>
-
-<script setup lang="ts">
-defineProps<{ x: number; y: number; isHit: boolean }>()
-defineEmits<{ pointerdown: [e: PointerEvent] }>()
-</script>

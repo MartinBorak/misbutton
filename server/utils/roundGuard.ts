@@ -20,7 +20,11 @@ export async function getRoundResult(roundId: string): Promise<RoundResult | nul
 }
 
 export async function markRoundUsed(roundId: string, clicks: number): Promise<void> {
-  await store().setItem<RoundResult>(`used:${roundId}`, { usedAt: Date.now(), clicks, claimed: false })
+  await store().setItem<RoundResult>(`used:${roundId}`, {
+    usedAt: Date.now(),
+    clicks,
+    claimed: false,
+  })
 }
 
 export async function markRoundClaimed(roundId: string): Promise<void> {
@@ -41,7 +45,9 @@ export async function checkRateLimit(ip: string): Promise<boolean> {
     await store().setItem(key, { count: 1, windowStart: now })
     return true
   }
-  if (existing.count >= RATE_LIMIT_MAX) return false
+  if (existing.count >= RATE_LIMIT_MAX) {
+    return false
+  }
   await store().setItem(key, { count: existing.count + 1, windowStart: existing.windowStart })
   return true
 }

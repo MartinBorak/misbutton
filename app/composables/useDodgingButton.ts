@@ -1,4 +1,10 @@
-import { createEvasionEngine, TICK_MS, type Bounds, type EvasionEngine, type Vec2 } from '#shared/evasionEngine'
+import {
+  createEvasionEngine,
+  TICK_MS,
+  type Bounds,
+  type EvasionEngine,
+  type Vec2,
+} from '#shared/evasionEngine'
 
 export interface DodgeLog {
   samples: [number, number][]
@@ -25,7 +31,9 @@ export function useDodgingButton() {
   }
 
   function tick() {
-    if (!engine) return
+    if (!engine) {
+      return
+    }
     samples.push([cursor.x, cursor.y])
     const center = engine.step(cursor)
     x.value = center.x
@@ -37,19 +45,25 @@ export function useDodgingButton() {
     requestAnimationFrame(() => {
       isHit.value = true
     })
-    if (hitTimeout) clearTimeout(hitTimeout)
+    if (hitTimeout) {
+      clearTimeout(hitTimeout)
+    }
     hitTimeout = setTimeout(() => {
       isHit.value = false
     }, 500)
   }
 
   function handlePointerDown(e: PointerEvent): boolean {
-    if (!engine) return false
+    if (!engine) {
+      return false
+    }
     const tickIndex = engine.getTick()
     const hitX = e.clientX
     const hitY = e.clientY
     const hit = engine.testHit(hitX, hitY)
-    if (!hit) return false
+    if (!hit) {
+      return false
+    }
 
     hits.push({ tick: tickIndex, x: hitX, y: hitY })
     clicks.value++
@@ -74,7 +88,9 @@ export function useDodgingButton() {
   }
 
   function stop(): DodgeLog {
-    if (intervalId) clearInterval(intervalId)
+    if (intervalId) {
+      clearInterval(intervalId)
+    }
     intervalId = null
     window.removeEventListener('pointermove', onPointerMove)
     engine = null
@@ -82,8 +98,12 @@ export function useDodgingButton() {
   }
 
   onUnmounted(() => {
-    if (intervalId) clearInterval(intervalId)
-    if (hitTimeout) clearTimeout(hitTimeout)
+    if (intervalId) {
+      clearInterval(intervalId)
+    }
+    if (hitTimeout) {
+      clearTimeout(hitTimeout)
+    }
     window.removeEventListener('pointermove', onPointerMove)
   })
 

@@ -17,7 +17,10 @@ export default defineEventHandler(async (event) => {
   }
 
   if (payload.bot) {
-    throw createError({ statusCode: 403, statusMessage: 'Automated sessions are not eligible for the leaderboard.' })
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Automated sessions are not eligible for the leaderboard.',
+    })
   }
 
   const result = await getRoundResult(payload.roundId)
@@ -33,7 +36,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Name required.' })
   }
 
-  const { qualifies, rank } = await submitEntry({ name, clicks: result.clicks, achievedAt: Date.now() })
+  const { qualifies, rank } = await submitEntry({
+    name,
+    clicks: result.clicks,
+    achievedAt: Date.now(),
+  })
   await markRoundClaimed(payload.roundId)
 
   return { qualifies, rank }
