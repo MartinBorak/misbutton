@@ -1,7 +1,7 @@
 import { simulateRound, TICK_MS, type HitEvent, type Vec2 } from '#shared/evasionEngine'
+import { ROUND_MS } from '#shared/roundConfig'
 
-const ROUND_MS = 60_000
-const ROUND_SLOP_MS = 5_000
+const ROUND_SLOP_MS = Math.min(5_000, Math.round(ROUND_MS * 0.5))
 const TICK_SLOP = Math.round(2_000 / TICK_MS)
 const MAX_SPEED_PX_PER_SEC = 15_000
 const MAX_PLAUSIBLE_CLICKS = Math.floor((ROUND_MS / 1000) * 8) // generous headroom above realistic play

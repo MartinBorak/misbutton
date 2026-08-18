@@ -1,4 +1,4 @@
-const ROUND_MS = 60_000
+import { ROUND_MS } from '#shared/roundConfig'
 
 export type RoundPhase = 'idle' | 'starting' | 'playing' | 'ended'
 
