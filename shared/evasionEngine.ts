@@ -38,8 +38,8 @@ export const DEFAULT_CONFIG: EngineConfig = {
   triggerRadius: 90,
   reactionDelayTicks: 2, // ~100ms
   cooldownTicks: 4, // ~200ms
-  dodgeMinDist: 240,
-  dodgeMaxDist: 460,
+  dodgeMinDist: 504,
+  dodgeMaxDist: 966,
   coneHalfAngleRad: Math.PI / 4, // ±45°
 }
 
@@ -83,7 +83,15 @@ function wrappedVec(a: Vec2, b: Vec2, bounds: Bounds): Vec2 {
   }
 }
 
-function dodgeTarget(
+/**
+ * The (x, y) offset of a dodge, before it's wrapped into the field. Distance
+ * is intentionally uncapped: the caller applies this same offset to both the
+ * wrapped canonical center (mod bounds, for hit-testing/distance math) and
+ * an unwrapped running total (for the client's on-screen continuity) — see
+ * the `rawCenter` tracking below — so there's no upper bound past which a
+ * big jump becomes ambiguous.
+ */
+function dodgeOffset(
   center: Vec2,
   awayFrom: Vec2,
   rng: () => number,
@@ -94,17 +102,8 @@ function dodgeTarget(
   const mag = Math.hypot(dx, dy)
   const baseAngle = mag < 1e-6 ? rng() * Math.PI * 2 : Math.atan2(dy, dx)
   const angle = baseAngle + (rng() * 2 - 1) * config.coneHalfAngleRad
-  const rawDist = config.dodgeMinDist + rng() * (config.dodgeMaxDist - config.dodgeMinDist)
-  // Capped at half the smaller bounds dimension: a single dodge bigger than
-  // that is indistinguishable, post-wrap, from a shorter dodge the other
-  // way — the displayed position (continuous across wraps, see
-  // useDodgingButton.ts) would then reconstruct the wrong direction of
-  // travel from the wrapped engine center.
-  const dist = Math.min(rawDist, Math.min(bounds.width, bounds.height) / 2)
-  return wrapToBounds(
-    { x: center.x + Math.cos(angle) * dist, y: center.y + Math.sin(angle) * dist },
-    bounds,
-  )
+  const dist = config.dodgeMinDist + rng() * (config.dodgeMaxDist - config.dodgeMinDist)
+  return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist }
 }
 
 export interface EvasionEngine {
@@ -113,6 +112,14 @@ export interface EvasionEngine {
   /** Test a click/pointerdown against the button's current position. Returns true on a hit. */
   testHit(x: number, y: number): boolean
   getCenter(): Vec2
+  /**
+   * Same position as getCenter(), but never wrapped into [0, bounds) — it
+   * just keeps accumulating every dodge offset. useDodgingButton.ts follows
+   * this directly for the on-screen position instead of reconstructing
+   * continuity from the wrapped value, so the display always slides the
+   * true distance/direction of every dodge, however large.
+   */
+  getRawCenter(): Vec2
   getTick(): number
 }
 
@@ -125,9 +132,16 @@ export function createEvasionEngine(opts: {
   const config: EngineConfig = { ...DEFAULT_CONFIG, ...opts.config }
   const rng = createRng(opts.seed)
   let center: Vec2 = opts.initialCenter ?? { x: opts.bounds.width / 2, y: opts.bounds.height / 2 }
+  let rawCenter: Vec2 = center
   let pendingReadyAtTick: number | null = null
   let lastDodgeTick = -Infinity
   let tick = 0
+
+  function applyDodge(awayFrom: Vec2) {
+    const offset = dodgeOffset(center, awayFrom, rng, opts.bounds, config)
+    center = wrapToBounds({ x: center.x + offset.x, y: center.y + offset.y }, opts.bounds)
+    rawCenter = { x: rawCenter.x + offset.x, y: rawCenter.y + offset.y }
+  }
 
   return {
     step(cursor: Vec2): Vec2 {
@@ -141,7 +155,7 @@ export function createEvasionEngine(opts: {
         pendingReadyAtTick = tick + config.reactionDelayTicks
       }
       if (pendingReadyAtTick !== null && tick >= pendingReadyAtTick) {
-        center = dodgeTarget(center, cursor, rng, opts.bounds, config)
+        applyDodge(cursor)
         lastDodgeTick = tick
         pendingReadyAtTick = null
       }
@@ -154,12 +168,13 @@ export function createEvasionEngine(opts: {
       if (dist > config.buttonRadius) {
         return false
       }
-      center = dodgeTarget(center, { x, y }, rng, opts.bounds, config)
+      applyDodge({ x, y })
       lastDodgeTick = tick
       pendingReadyAtTick = null
       return true
     },
     getCenter: () => center,
+    getRawCenter: () => rawCenter,
     getTick: () => tick,
   }
 }

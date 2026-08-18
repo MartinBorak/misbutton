@@ -137,24 +137,24 @@ describe('createEvasionEngine', () => {
     expect(dist).toBeLessThanOrEqual(80 + 1e-9)
   })
 
-  it('caps dodge distance at half the smaller bounds dimension, even if config asks for more', () => {
-    // A dodge longer than half a wrapping dimension is ambiguous once
-    // wrapped: useDodgingButton.ts reconstructs a continuous on-screen
-    // position from the shortest path between ticks, so an overlong jump
-    // would be indistinguishable from a much shorter jump the other way.
+  it('moves getRawCenter() by the true dodge distance, unclamped, even past half the bounds', () => {
+    // getRawCenter() never wraps, so — unlike getCenter() — it isn't
+    // ambiguous about which way a big jump went: useDodgingButton.ts
+    // follows it directly for on-screen continuity instead of guessing a
+    // wrapped position's shortest path. There's therefore no need to cap
+    // dodge distance at half the bounds the way getCenter() effectively is.
     const engine = createEvasionEngine({
       seed: 3,
       bounds,
       config: { reactionDelayTicks: 0, cooldownTicks: 0, dodgeMinDist: 1000, dodgeMaxDist: 2000 },
     })
-    const maxSafeDist = Math.min(bounds.width, bounds.height) / 2
     for (let i = 0; i < 20; i++) {
-      const before = engine.getCenter()
-      const after = engine.step({ x: before.x + 5, y: before.y })
-      const dx = wrappedDelta(after.x - before.x, bounds.width)
-      const dy = wrappedDelta(after.y - before.y, bounds.height)
-      const dist = Math.hypot(dx, dy)
-      expect(dist).toBeLessThanOrEqual(maxSafeDist + 1e-9)
+      const before = engine.getRawCenter()
+      engine.step({ x: before.x + 5, y: before.y })
+      const after = engine.getRawCenter()
+      const dist = Math.hypot(after.x - before.x, after.y - before.y)
+      expect(dist).toBeGreaterThanOrEqual(1000 - 1e-9)
+      expect(dist).toBeLessThanOrEqual(2000 + 1e-9)
     }
   })
 

@@ -1,7 +1,6 @@
 import {
   createEvasionEngine,
   TICK_MS,
-  wrappedDelta,
   type Bounds,
   type EvasionEngine,
   type Vec2,
@@ -32,15 +31,18 @@ export function useDodgingButton() {
     cursor = { x: e.clientX, y: e.clientY }
   }
 
-  // The engine's center is always wrapped into [0, bounds) — snapping the
-  // rendered position straight to that would show a dodge through one edge
-  // as a jump to some unrelated point instead of continuing off-screen.
-  // Nudge the displayed x/y by the shortest wrapped delta from where it
-  // last was, so it keeps sliding the same direction through the edge; see
+  // engine.getRawCenter() is never wrapped into [0, bounds) — it just keeps
+  // accumulating every dodge, so following it directly always slides the
+  // true distance/direction of a dodge instead of guessing a wrapped
+  // position's shortest path back to the last displayed spot; see
   // DodgeButton.vue for how that's rendered without ever going invisible.
-  function setDisplayPosition(center: Vec2) {
-    x.value += wrappedDelta(center.x - x.value, bounds.value.width)
-    y.value += wrappedDelta(center.y - y.value, bounds.value.height)
+  function setDisplayPosition() {
+    if (!engine) {
+      return
+    }
+    const raw = engine.getRawCenter()
+    x.value = raw.x
+    y.value = raw.y
   }
 
   function tick() {
@@ -48,7 +50,8 @@ export function useDodgingButton() {
       return
     }
     samples.push([cursor.x, cursor.y])
-    setDisplayPosition(engine.step(cursor))
+    engine.step(cursor)
+    setDisplayPosition()
   }
 
   function triggerHitEffect() {
@@ -78,7 +81,7 @@ export function useDodgingButton() {
 
     hits.push({ tick: tickIndex, x: hitX, y: hitY })
     clicks.value++
-    setDisplayPosition(engine.getCenter())
+    setDisplayPosition()
     triggerHitEffect()
     return true
   }
