@@ -21,7 +21,10 @@ export interface HitEvent {
 
 export interface EngineConfig {
   tickMs: number
-  buttonRadius: number
+  /** Base button radius, as a fraction of the smaller bounds dimension —
+   *  not an absolute pixel count — so the button is the same relative size
+   *  on any device instead of favoring a bigger or smaller one. */
+  buttonRadiusFrac: number
   triggerRadius: number
   reactionDelayTicks: number
   cooldownTicks: number
@@ -35,20 +38,34 @@ export interface EngineConfig {
    *  fleeing the cursor: 0 = pure flee, 1 = ignores the cursor and always
    *  heads for center. Keeps the button from congregating near the edges. */
   centerPullWeight: number
+  /** Multiplied into the button's radius after every successful hit, so it
+   *  gets progressively smaller (and harder to click) as the score climbs. */
+  radiusShrinkPerHit: number
+  /** Radius never shrinks below this, so the button stays clickable. */
+  minButtonRadius: number
+  /** Multiplied into dodgeMinDistFrac/dodgeMaxDistFrac after every
+   *  successful hit, so dodges cover more ground as the score climbs. */
+  dodgeDistGrowthPerHit: number
+  /** Distance growth never multiplies past this, so dodges stay bounded. */
+  maxDodgeDistMultiplier: number
 }
 
 export const TICK_MS = 50
 
 export const DEFAULT_CONFIG: EngineConfig = {
   tickMs: TICK_MS,
-  buttonRadius: 36,
+  buttonRadiusFrac: 0.1,
   triggerRadius: 90,
   reactionDelayTicks: 2, // ~100ms
   cooldownTicks: 4, // ~200ms
-  dodgeMinDistFrac: 0.5,
-  dodgeMaxDistFrac: 1.0,
+  dodgeMinDistFrac: 0.4,
+  dodgeMaxDistFrac: 0.6,
   coneHalfAngleRad: Math.PI / 4, // ±45°
-  centerPullWeight: 0.25,
+  centerPullWeight: 0.45,
+  radiusShrinkPerHit: 0.97,
+  minButtonRadius: 16,
+  dodgeDistGrowthPerHit: 1.02,
+  maxDodgeDistMultiplier: 2,
 }
 
 /** mulberry32 — small, fast, deterministic PRNG seeded by a single integer. */
@@ -105,6 +122,7 @@ function dodgeOffset(
   rng: () => number,
   bounds: Bounds,
   config: EngineConfig,
+  distMultiplier: number,
 ): Vec2 {
   const { x: dx, y: dy } = wrappedVec(center, awayFrom, bounds)
   const mag = Math.hypot(dx, dy)
@@ -131,7 +149,7 @@ function dodgeOffset(
   const angle = baseAngle + (rng() * 2 - 1) * config.coneHalfAngleRad
   const distFrac =
     config.dodgeMinDistFrac + rng() * (config.dodgeMaxDistFrac - config.dodgeMinDistFrac)
-  const dist = distFrac * Math.min(bounds.width, bounds.height)
+  const dist = distFrac * Math.min(bounds.width, bounds.height) * distMultiplier
   return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist }
 }
 
@@ -150,6 +168,10 @@ export interface EvasionEngine {
    */
   getRawCenter(): Vec2
   getTick(): number
+  /** Current button radius: shrinks by radiusShrinkPerHit on every
+   *  successful hit, floored at minButtonRadius. Drives both hit-testing
+   *  and the rendered size, so the two never drift out of sync. */
+  getRadius(): number
 }
 
 export function createEvasionEngine(opts: {
@@ -160,16 +182,35 @@ export function createEvasionEngine(opts: {
 }): EvasionEngine {
   const config: EngineConfig = { ...DEFAULT_CONFIG, ...opts.config }
   const rng = createRng(opts.seed)
-  let center: Vec2 = opts.initialCenter ?? { x: opts.bounds.width / 2, y: opts.bounds.height / 2 }
+  // Drawn from the same seeded rng as everything else, so the client
+  // (predicting live) and the server (replaying the submitted round) agree
+  // on where the round actually started without needing to transmit it.
+  let center: Vec2 = opts.initialCenter ?? {
+    x: rng() * opts.bounds.width,
+    y: rng() * opts.bounds.height,
+  }
   let rawCenter: Vec2 = center
   let pendingReadyAtTick: number | null = null
   let lastDodgeTick = -Infinity
   let tick = 0
+  let hitCount = 0
+
+  function currentDistMultiplier(): number {
+    return Math.min(config.maxDodgeDistMultiplier, Math.pow(config.dodgeDistGrowthPerHit, hitCount))
+  }
 
   function applyDodge(awayFrom: Vec2) {
-    const offset = dodgeOffset(center, awayFrom, rng, opts.bounds, config)
+    const offset = dodgeOffset(center, awayFrom, rng, opts.bounds, config, currentDistMultiplier())
     center = wrapToBounds({ x: center.x + offset.x, y: center.y + offset.y }, opts.bounds)
     rawCenter = { x: rawCenter.x + offset.x, y: rawCenter.y + offset.y }
+  }
+
+  function currentRadius(): number {
+    const baseRadius = config.buttonRadiusFrac * Math.min(opts.bounds.width, opts.bounds.height)
+    return Math.max(
+      config.minButtonRadius,
+      baseRadius * Math.pow(config.radiusShrinkPerHit, hitCount),
+    )
   }
 
   return {
@@ -194,9 +235,10 @@ export function createEvasionEngine(opts: {
     testHit(x: number, y: number): boolean {
       const { x: dx, y: dy } = wrappedVec({ x, y }, center, opts.bounds)
       const dist = Math.hypot(dx, dy)
-      if (dist > config.buttonRadius) {
+      if (dist > currentRadius()) {
         return false
       }
+      hitCount++
       applyDodge({ x, y })
       lastDodgeTick = tick
       pendingReadyAtTick = null
@@ -205,6 +247,7 @@ export function createEvasionEngine(opts: {
     getCenter: () => center,
     getRawCenter: () => rawCenter,
     getTick: () => tick,
+    getRadius: currentRadius,
   }
 }
 

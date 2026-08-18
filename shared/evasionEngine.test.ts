@@ -58,9 +58,22 @@ describe('wrappedDelta', () => {
 describe('createEvasionEngine', () => {
   const bounds = { width: 400, height: 300 }
 
-  it('starts centered in the bounds when no initialCenter is given', () => {
-    const engine = createEvasionEngine({ seed: 1, bounds })
-    expect(engine.getCenter()).toEqual({ x: 200, y: 150 })
+  it('starts at a random position within bounds when no initialCenter is given', () => {
+    // Deterministic per seed (drawn from the same seeded rng as everything
+    // else) so the client and the server's replay agree on it without it
+    // needing to be transmitted — but not pinned to any fixed spot.
+    const a = createEvasionEngine({ seed: 1, bounds })
+    const b = createEvasionEngine({ seed: 1, bounds })
+    expect(a.getCenter()).toEqual(b.getCenter())
+
+    const start = a.getCenter()
+    expect(start.x).toBeGreaterThanOrEqual(0)
+    expect(start.x).toBeLessThan(bounds.width)
+    expect(start.y).toBeGreaterThanOrEqual(0)
+    expect(start.y).toBeLessThan(bounds.height)
+
+    const differentSeed = createEvasionEngine({ seed: 2, bounds })
+    expect(differentSeed.getCenter()).not.toEqual(start)
   })
 
   it('honors an explicit initialCenter', () => {
@@ -201,13 +214,13 @@ describe('createEvasionEngine', () => {
 
   describe('testHit', () => {
     it('misses when the click is outside the button radius', () => {
-      const engine = createEvasionEngine({ seed: 1, bounds, config: { buttonRadius: 36 } })
+      const engine = createEvasionEngine({ seed: 1, bounds, config: { buttonRadiusFrac: 0.12 } })
       const c = engine.getCenter()
       expect(engine.testHit(c.x + 100, c.y)).toBe(false)
     })
 
     it('hits and relocates the button when the click lands within its radius', () => {
-      const engine = createEvasionEngine({ seed: 1, bounds, config: { buttonRadius: 36 } })
+      const engine = createEvasionEngine({ seed: 1, bounds, config: { buttonRadiusFrac: 0.12 } })
       const c = engine.getCenter()
       const hit = engine.testHit(c.x + 5, c.y)
       expect(hit).toBe(true)
@@ -219,7 +232,7 @@ describe('createEvasionEngine', () => {
         seed: 1,
         bounds,
         initialCenter: { x: 397, y: 150 },
-        config: { buttonRadius: 36 },
+        config: { buttonRadiusFrac: 0.12 },
       })
       // Straight-line distance from (3, 150) to (397, 150) is 394px — way
       // outside any reasonable radius — but the wrapped distance is 6px.
@@ -240,6 +253,103 @@ describe('createEvasionEngine', () => {
       engine.step({ x: c1.x + 5, y: c1.y })
       engine.step({ x: c1.x + 5, y: c1.y })
       expect(engine.getCenter()).not.toEqual(c1)
+    })
+
+    it('shrinks the radius by radiusShrinkPerHit on every hit', () => {
+      const engine = createEvasionEngine({
+        seed: 1,
+        bounds,
+        config: { buttonRadiusFrac: 0.12, radiusShrinkPerHit: 0.9, minButtonRadius: 10 },
+      })
+      expect(engine.getRadius()).toBeCloseTo(36)
+      for (let i = 0; i < 5; i++) {
+        const c = engine.getCenter()
+        expect(engine.testHit(c.x, c.y)).toBe(true)
+      }
+      expect(engine.getRadius()).toBeCloseTo(36 * 0.9 ** 5)
+    })
+
+    it('floors the radius at minButtonRadius no matter how many hits land', () => {
+      const engine = createEvasionEngine({
+        seed: 1,
+        bounds,
+        config: { buttonRadiusFrac: 0.12, radiusShrinkPerHit: 0.5, minButtonRadius: 10 },
+      })
+      for (let i = 0; i < 20; i++) {
+        const c = engine.getCenter()
+        engine.testHit(c.x, c.y)
+      }
+      expect(engine.getRadius()).toBe(10)
+    })
+
+    it('hit-tests against the current shrunk radius, not the original base radius', () => {
+      const engine = createEvasionEngine({
+        seed: 1,
+        bounds,
+        config: { buttonRadiusFrac: 0.12, radiusShrinkPerHit: 0.5, minButtonRadius: 1 },
+      })
+      for (let i = 0; i < 6; i++) {
+        const c = engine.getCenter()
+        engine.testHit(c.x, c.y)
+      }
+      // Radius is now 36 * 0.5^6 ≈ 0.56, floored at 1 — a 5px-off click would
+      // have landed at the original 36px radius, but not at this one.
+      const c = engine.getCenter()
+      expect(engine.testHit(c.x + 5, c.y)).toBe(false)
+    })
+
+    it('grows dodge distance by dodgeDistGrowthPerHit on every hit', () => {
+      // dodgeMinDistFrac === dodgeMaxDistFrac pins distance to a single
+      // deterministic value per hit, so only the growth multiplier varies.
+      const engine = createEvasionEngine({
+        seed: 3,
+        bounds,
+        config: {
+          reactionDelayTicks: 0,
+          cooldownTicks: 0,
+          dodgeMinDistFrac: 0.2,
+          dodgeMaxDistFrac: 0.2,
+          dodgeDistGrowthPerHit: 1.5,
+          maxDodgeDistMultiplier: 100,
+        },
+      })
+
+      const firstBefore = engine.getRawCenter()
+      engine.testHit(engine.getCenter().x, engine.getCenter().y)
+      const firstAfter = engine.getRawCenter()
+      const firstDist = Math.hypot(firstAfter.x - firstBefore.x, firstAfter.y - firstBefore.y)
+
+      const secondBefore = engine.getRawCenter()
+      engine.testHit(engine.getCenter().x, engine.getCenter().y)
+      const secondAfter = engine.getRawCenter()
+      const secondDist = Math.hypot(secondAfter.x - secondBefore.x, secondAfter.y - secondBefore.y)
+
+      expect(secondDist).toBeCloseTo(firstDist * 1.5)
+    })
+
+    it('caps dodge distance growth at maxDodgeDistMultiplier', () => {
+      const engine = createEvasionEngine({
+        seed: 3,
+        bounds,
+        config: {
+          reactionDelayTicks: 0,
+          cooldownTicks: 0,
+          dodgeMinDistFrac: 0.2,
+          dodgeMaxDistFrac: 0.2,
+          dodgeDistGrowthPerHit: 2,
+          maxDodgeDistMultiplier: 4,
+        },
+      })
+      for (let i = 0; i < 10; i++) {
+        engine.testHit(engine.getCenter().x, engine.getCenter().y)
+      }
+      // growth^10 is far past the cap of 4, so this hit's dodge should use
+      // the capped multiplier: 0.2 * min(bounds) * 4 = 240.
+      const before = engine.getRawCenter()
+      engine.testHit(engine.getCenter().x, engine.getCenter().y)
+      const after = engine.getRawCenter()
+      const dist = Math.hypot(after.x - before.x, after.y - before.y)
+      expect(dist).toBeCloseTo(0.2 * Math.min(bounds.width, bounds.height) * 4)
     })
   })
 })
@@ -263,6 +373,8 @@ describe('simulateRound', () => {
       ],
       bounds,
       seed: 1,
+      config: { buttonRadiusFrac: 0.12 },
+      initialCenter: { x: 200, y: 150 }, // pin the start so the click coordinates above are meaningful
     })
     expect(result.hitResults).toEqual([true, false])
     expect(result.clicks).toBe(1)
@@ -277,8 +389,9 @@ describe('simulateRound', () => {
     const hitA = { tick: 0, x: 200, y: 150 }
     const hitB = { tick: 2, x: 0, y: 0 }
 
-    const inOrder = simulateRound({ samples, hits: [hitA, hitB], bounds, seed: 5 })
-    const shuffled = simulateRound({ samples, hits: [hitB, hitA], bounds, seed: 5 })
+    const initialCenter = { x: 200, y: 150 } // pin the start so the click coordinates above are meaningful
+    const inOrder = simulateRound({ samples, hits: [hitA, hitB], bounds, seed: 5, initialCenter })
+    const shuffled = simulateRound({ samples, hits: [hitB, hitA], bounds, seed: 5, initialCenter })
 
     expect(inOrder.hitResults).toEqual([true, false]) // hitA hits, hitB misses
     expect(shuffled.hitResults).toEqual([false, true]) // same outcomes, slots swapped

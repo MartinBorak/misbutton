@@ -1,15 +1,15 @@
 <script setup lang="ts">
-  import { DEFAULT_CONFIG } from '#shared/evasionEngine'
-
   const props = defineProps<{
     x: number
     y: number
     isHit: boolean
     bounds: { width: number; height: number }
+    /** Current hit-radius from the engine (shrinks with each click, see
+     *  shared/evasionEngine.ts) — drives both the windowing math below and
+     *  the rendered size, so what's drawn always matches what's clickable. */
+    radius: number
   }>()
   defineEmits<{ pointerdown: [e: PointerEvent] }>()
-
-  const RADIUS = DEFAULT_CONFIG.buttonRadius
 
   // The play field wraps (see shared/evasionEngine.ts), and x/y are kept
   // continuous with the button's on-screen trajectory rather than snapped to
@@ -46,7 +46,10 @@
         const cx = props.x + kx * width
         const cy = props.y + ky * height
         const visible =
-          cx + RADIUS > 0 && cx - RADIUS < width && cy + RADIUS > 0 && cy - RADIUS < height
+          cx + props.radius > 0 &&
+          cx - props.radius < width &&
+          cy + props.radius > 0 &&
+          cy - props.radius < height
         result.push({ key: `${kx},${ky}`, x: cx, y: cy, visible })
       }
     }
@@ -61,7 +64,7 @@
       :key="c.key"
       class="dodge-button"
       :class="{ 'is-hit': isHit }"
-      :style="{ '--x': `${c.x}px`, '--y': `${c.y}px` }"
+      :style="{ '--x': `${c.x}px`, '--y': `${c.y}px`, '--button-diameter': `${radius * 2}px` }"
       type="button"
       :aria-label="c.visible ? 'Catch me!' : undefined"
       :aria-hidden="c.visible ? undefined : true"

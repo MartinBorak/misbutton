@@ -19,6 +19,7 @@ export function useDodgingButton() {
   const isHit = ref(false)
   const clicks = ref(0)
   const bounds = ref<Bounds>({ width: 0, height: 0 })
+  const radius = ref(0)
 
   let engine: EvasionEngine | null = null
   let intervalId: ReturnType<typeof setInterval> | null = null
@@ -36,13 +37,16 @@ export function useDodgingButton() {
   // true distance/direction of a dodge instead of guessing a wrapped
   // position's shortest path back to the last displayed spot; see
   // DodgeButton.vue for how that's rendered without ever going invisible.
-  function setDisplayPosition() {
+  // Also pulls the current (possibly shrunk) radius, so the rendered size
+  // always matches what the engine is actually hit-testing against.
+  function syncFromEngine() {
     if (!engine) {
       return
     }
     const raw = engine.getRawCenter()
     x.value = raw.x
     y.value = raw.y
+    radius.value = engine.getRadius()
   }
 
   function tick() {
@@ -51,7 +55,7 @@ export function useDodgingButton() {
     }
     samples.push([cursor.x, cursor.y])
     engine.step(cursor)
-    setDisplayPosition()
+    syncFromEngine()
   }
 
   function triggerHitEffect() {
@@ -81,7 +85,7 @@ export function useDodgingButton() {
 
     hits.push({ tick: tickIndex, x: hitX, y: hitY })
     clicks.value++
-    setDisplayPosition()
+    syncFromEngine()
     triggerHitEffect()
     return true
   }
@@ -96,6 +100,7 @@ export function useDodgingButton() {
     const center = engine.getCenter()
     x.value = center.x
     y.value = center.y
+    radius.value = engine.getRadius()
     window.addEventListener('pointermove', onPointerMove)
     intervalId = setInterval(tick, TICK_MS)
   }
@@ -120,5 +125,5 @@ export function useDodgingButton() {
     window.removeEventListener('pointermove', onPointerMove)
   })
 
-  return { x, y, isHit, clicks, bounds, start, stop, handlePointerDown }
+  return { x, y, isHit, clicks, bounds, radius, start, stop, handlePointerDown }
 }

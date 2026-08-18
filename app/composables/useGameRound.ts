@@ -144,6 +144,7 @@ export function useGameRound() {
     dodgeY: dodge.y,
     dodgeIsHit: dodge.isHit,
     dodgeBounds: dodge.bounds,
+    dodgeRadius: dodge.radius,
     handlePointerDown: dodge.handlePointerDown,
     startRound,
     claim,

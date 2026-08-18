@@ -38,13 +38,26 @@ afterEach(() => {
 })
 
 describe('useDodgingButton', () => {
-  it('starts centered in the given bounds', () => {
+  it('starts at a random position within the given bounds', () => {
     const dodge = useDodgingButton()
     dodge.start(1, BOUNDS)
-    expect(dodge.x.value).toBe(200)
-    expect(dodge.y.value).toBe(150)
+    expect(dodge.x.value).toBeGreaterThanOrEqual(0)
+    expect(dodge.x.value).toBeLessThan(BOUNDS.width)
+    expect(dodge.y.value).toBeGreaterThanOrEqual(0)
+    expect(dodge.y.value).toBeLessThan(BOUNDS.height)
     expect(dodge.bounds.value).toEqual(BOUNDS)
     dodge.stop()
+  })
+
+  it('starts at the same position for the same seed', () => {
+    const a = useDodgingButton()
+    a.start(1, BOUNDS)
+    const b = useDodgingButton()
+    b.start(1, BOUNDS)
+    expect(a.x.value).toBe(b.x.value)
+    expect(a.y.value).toBe(b.y.value)
+    a.stop()
+    b.stop()
   })
 
   it('records a cursor sample on every tick', () => {
@@ -75,6 +88,17 @@ describe('useDodgingButton', () => {
     expect(hit).toBe(true)
     expect(dodge.clicks.value).toBe(1)
     expect([dodge.x.value, dodge.y.value]).not.toEqual([200, 150])
+    dodge.stop()
+  })
+
+  it('shrinks radius after a hit and uses the shrunk radius for the next hit test', () => {
+    const dodge = useDodgingButton()
+    dodge.start(1, BOUNDS)
+    const initialRadius = dodge.radius.value
+
+    dodge.handlePointerDown({ clientX: dodge.x.value, clientY: dodge.y.value } as PointerEvent)
+
+    expect(dodge.radius.value).toBeLessThan(initialRadius)
     dodge.stop()
   })
 
