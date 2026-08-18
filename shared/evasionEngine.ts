@@ -38,8 +38,8 @@ export const DEFAULT_CONFIG: EngineConfig = {
   triggerRadius: 90,
   reactionDelayTicks: 2, // ~100ms
   cooldownTicks: 4, // ~200ms
-  dodgeMinDist: 120,
-  dodgeMaxDist: 220,
+  dodgeMinDist: 240,
+  dodgeMaxDist: 460,
   coneHalfAngleRad: Math.PI / 4, // ±45°
 }
 
@@ -94,7 +94,13 @@ function dodgeTarget(
   const mag = Math.hypot(dx, dy)
   const baseAngle = mag < 1e-6 ? rng() * Math.PI * 2 : Math.atan2(dy, dx)
   const angle = baseAngle + (rng() * 2 - 1) * config.coneHalfAngleRad
-  const dist = config.dodgeMinDist + rng() * (config.dodgeMaxDist - config.dodgeMinDist)
+  const rawDist = config.dodgeMinDist + rng() * (config.dodgeMaxDist - config.dodgeMinDist)
+  // Capped at half the smaller bounds dimension: a single dodge bigger than
+  // that is indistinguishable, post-wrap, from a shorter dodge the other
+  // way — the displayed position (continuous across wraps, see
+  // useDodgingButton.ts) would then reconstruct the wrong direction of
+  // travel from the wrapped engine center.
+  const dist = Math.min(rawDist, Math.min(bounds.width, bounds.height) / 2)
   return wrapToBounds(
     { x: center.x + Math.cos(angle) * dist, y: center.y + Math.sin(angle) * dist },
     bounds,

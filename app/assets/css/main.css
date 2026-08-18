@@ -155,7 +155,7 @@ button {
   box-shadow: var(--shadow-glow);
   will-change: transform;
   transform: translate3d(var(--x, 0px), var(--y, 0px), 0);
-  transition: transform 0.11s ease-out;
+  transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
   animation: idle-pulse 2.6s ease-in-out infinite;
 }
 
