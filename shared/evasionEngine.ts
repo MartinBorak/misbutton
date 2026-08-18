@@ -208,7 +208,7 @@ function intPow(base: number, exponent: number): number {
 export const DEFAULT_CONFIG: EngineConfig = {
   tickMs: TICK_MS,
   buttonRadiusFrac: 0.08,
-  triggerRadiusFrac: 0.1,
+  triggerRadiusFrac: 0.2,
   reactionDelayTicks: 2, // ~100ms
   cooldownTicks: 4, // ~200ms
   dodgeMinDistFrac: 0.4,
