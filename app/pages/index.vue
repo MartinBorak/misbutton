@@ -2,6 +2,7 @@
   const pointerCapable = usePointerCapability()
   const { theme, toggle } = useTheme()
   const leaderboard = useLeaderboard()
+  const isDev = import.meta.dev
 
   const {
     phase,
@@ -17,6 +18,7 @@
     dodgeIsHit,
     dodgeBounds,
     dodgeRadius,
+    dodgeDebugInfo,
     handlePointerDown,
     startRound,
     claim,
@@ -80,6 +82,11 @@
         :bounds="dodgeBounds"
         :radius="dodgeRadius"
         @pointerdown="handlePointerDown"
+      />
+
+      <DevParamsPanel
+        v-if="isDev"
+        :info="dodgeDebugInfo"
       />
 
       <div

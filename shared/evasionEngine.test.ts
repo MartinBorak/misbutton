@@ -93,7 +93,7 @@ describe('createEvasionEngine', () => {
     const engine = createEvasionEngine({ seed: 1, bounds })
     const start = engine.getCenter()
     for (let i = 0; i < 20; i++) {
-      engine.step({ x: 0, y: 0 }) // far corner, well outside triggerRadius (90)
+      engine.step({ x: 0, y: 0 }) // far corner, well outside the trigger radius
     }
     expect(engine.getCenter()).toEqual(start)
   })
@@ -259,7 +259,7 @@ describe('createEvasionEngine', () => {
       const engine = createEvasionEngine({
         seed: 1,
         bounds,
-        config: { buttonRadiusFrac: 0.12, radiusShrinkPerHit: 0.9, minButtonRadius: 10 },
+        config: { buttonRadiusFrac: 0.12, radiusShrinkPerHit: 0.9, minButtonRadiusFrac: 10 / 300 },
       })
       expect(engine.getRadius()).toBeCloseTo(36)
       for (let i = 0; i < 5; i++) {
@@ -269,24 +269,24 @@ describe('createEvasionEngine', () => {
       expect(engine.getRadius()).toBeCloseTo(36 * 0.9 ** 5)
     })
 
-    it('floors the radius at minButtonRadius no matter how many hits land', () => {
+    it('floors the radius at minButtonRadiusFrac no matter how many hits land', () => {
       const engine = createEvasionEngine({
         seed: 1,
         bounds,
-        config: { buttonRadiusFrac: 0.12, radiusShrinkPerHit: 0.5, minButtonRadius: 10 },
+        config: { buttonRadiusFrac: 0.12, radiusShrinkPerHit: 0.5, minButtonRadiusFrac: 10 / 300 },
       })
       for (let i = 0; i < 20; i++) {
         const c = engine.getCenter()
         engine.testHit(c.x, c.y)
       }
-      expect(engine.getRadius()).toBe(10)
+      expect(engine.getRadius()).toBeCloseTo(10)
     })
 
     it('hit-tests against the current shrunk radius, not the original base radius', () => {
       const engine = createEvasionEngine({
         seed: 1,
         bounds,
-        config: { buttonRadiusFrac: 0.12, radiusShrinkPerHit: 0.5, minButtonRadius: 1 },
+        config: { buttonRadiusFrac: 0.12, radiusShrinkPerHit: 0.5, minButtonRadiusFrac: 1 / 300 },
       })
       for (let i = 0; i < 6; i++) {
         const c = engine.getCenter()
@@ -350,6 +350,45 @@ describe('createEvasionEngine', () => {
       const after = engine.getRawCenter()
       const dist = Math.hypot(after.x - before.x, after.y - before.y)
       expect(dist).toBeCloseTo(0.2 * Math.min(bounds.width, bounds.height) * 4)
+    })
+  })
+
+  describe('getDebugInfo', () => {
+    it('resolves the *Frac config fractions to absolute pixels for these bounds', () => {
+      const engine = createEvasionEngine({
+        seed: 1,
+        bounds,
+        config: {
+          buttonRadiusFrac: 0.1,
+          triggerRadiusFrac: 0.2,
+          dodgeMinDistFrac: 0.3,
+          dodgeMaxDistFrac: 0.4,
+        },
+      })
+      const info = engine.getDebugInfo()
+      expect(info.tick).toBe(0)
+      expect(info.hitCount).toBe(0)
+      expect(info.radius).toBeCloseTo(0.1 * 300)
+      expect(info.triggerRadius).toBeCloseTo(0.2 * 300)
+      expect(info.dodgeDistMin).toBeCloseTo(0.3 * 300)
+      expect(info.dodgeDistMax).toBeCloseTo(0.4 * 300)
+      expect(info.dodgeDistMultiplier).toBeCloseTo(1)
+    })
+
+    it('reflects hits: tick/hitCount advance, radius shrinks, dodge distance grows', () => {
+      const engine = createEvasionEngine({
+        seed: 1,
+        bounds,
+        config: { radiusShrinkPerHit: 0.5, dodgeDistGrowthPerHit: 2, maxDodgeDistMultiplier: 100 },
+      })
+      engine.step(engine.getCenter())
+      engine.testHit(engine.getCenter().x, engine.getCenter().y)
+
+      const info = engine.getDebugInfo()
+      expect(info.tick).toBe(1)
+      expect(info.hitCount).toBe(1)
+      expect(info.dodgeDistMultiplier).toBeCloseTo(2)
+      expect(info.radius).toBeCloseTo(engine.getRadius())
     })
   })
 })

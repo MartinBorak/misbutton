@@ -25,7 +25,9 @@ export interface EngineConfig {
    *  not an absolute pixel count — so the button is the same relative size
    *  on any device instead of favoring a bigger or smaller one. */
   buttonRadiusFrac: number
-  triggerRadius: number
+  /** How close the cursor needs to get before the button notices and
+   *  dodges, as a fraction of the smaller bounds dimension. */
+  triggerRadiusFrac: number
   reactionDelayTicks: number
   cooldownTicks: number
   /** Dodge distance, as a fraction of the smaller bounds dimension — not an
@@ -41,8 +43,9 @@ export interface EngineConfig {
   /** Multiplied into the button's radius after every successful hit, so it
    *  gets progressively smaller (and harder to click) as the score climbs. */
   radiusShrinkPerHit: number
-  /** Radius never shrinks below this, so the button stays clickable. */
-  minButtonRadius: number
+  /** Radius never shrinks below this fraction of the smaller bounds
+   *  dimension, so the button stays clickable. */
+  minButtonRadiusFrac: number
   /** Multiplied into dodgeMinDistFrac/dodgeMaxDistFrac after every
    *  successful hit, so dodges cover more ground as the score climbs. */
   dodgeDistGrowthPerHit: number
@@ -54,8 +57,8 @@ export const TICK_MS = 50
 
 export const DEFAULT_CONFIG: EngineConfig = {
   tickMs: TICK_MS,
-  buttonRadiusFrac: 0.1,
-  triggerRadius: 90,
+  buttonRadiusFrac: 0.08,
+  triggerRadiusFrac: 0.1,
   reactionDelayTicks: 2, // ~100ms
   cooldownTicks: 4, // ~200ms
   dodgeMinDistFrac: 0.4,
@@ -63,7 +66,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   coneHalfAngleRad: Math.PI / 4, // ±45°
   centerPullWeight: 0.45,
   radiusShrinkPerHit: 0.97,
-  minButtonRadius: 16,
+  minButtonRadiusFrac: 0.02,
   dodgeDistGrowthPerHit: 1.02,
   maxDodgeDistMultiplier: 2,
 }
@@ -153,6 +156,20 @@ function dodgeOffset(
   return { x: Math.cos(angle) * dist, y: Math.sin(angle) * dist }
 }
 
+/** Snapshot of the values that drift over a round as the progressive
+ *  mechanics kick in — for the dev-only HUD readout, nothing gameplay
+ *  depends on this. All distances are absolute pixels for this engine's
+ *  actual bounds, already resolved from the *Frac config fractions. */
+export interface EngineDebugInfo {
+  tick: number
+  hitCount: number
+  radius: number
+  triggerRadius: number
+  dodgeDistMin: number
+  dodgeDistMax: number
+  dodgeDistMultiplier: number
+}
+
 export interface EvasionEngine {
   /** Advance one tick given the cursor position sampled for this tick. Returns the new button center. */
   step(cursor: Vec2): Vec2
@@ -169,9 +186,10 @@ export interface EvasionEngine {
   getRawCenter(): Vec2
   getTick(): number
   /** Current button radius: shrinks by radiusShrinkPerHit on every
-   *  successful hit, floored at minButtonRadius. Drives both hit-testing
+   *  successful hit, floored at minButtonRadiusFrac. Drives both hit-testing
    *  and the rendered size, so the two never drift out of sync. */
   getRadius(): number
+  getDebugInfo(): EngineDebugInfo
 }
 
 export function createEvasionEngine(opts: {
@@ -205,10 +223,12 @@ export function createEvasionEngine(opts: {
     rawCenter = { x: rawCenter.x + offset.x, y: rawCenter.y + offset.y }
   }
 
+  const minDim = Math.min(opts.bounds.width, opts.bounds.height)
+
   function currentRadius(): number {
-    const baseRadius = config.buttonRadiusFrac * Math.min(opts.bounds.width, opts.bounds.height)
+    const baseRadius = config.buttonRadiusFrac * minDim
     return Math.max(
-      config.minButtonRadius,
+      config.minButtonRadiusFrac * minDim,
       baseRadius * Math.pow(config.radiusShrinkPerHit, hitCount),
     )
   }
@@ -218,7 +238,7 @@ export function createEvasionEngine(opts: {
       const { x: dx, y: dy } = wrappedVec(cursor, center, opts.bounds)
       const dist = Math.hypot(dx, dy)
       if (
-        dist < config.triggerRadius &&
+        dist < config.triggerRadiusFrac * minDim &&
         pendingReadyAtTick === null &&
         tick - lastDodgeTick >= config.cooldownTicks
       ) {
@@ -248,6 +268,18 @@ export function createEvasionEngine(opts: {
     getRawCenter: () => rawCenter,
     getTick: () => tick,
     getRadius: currentRadius,
+    getDebugInfo: () => {
+      const distMultiplier = currentDistMultiplier()
+      return {
+        tick,
+        hitCount,
+        radius: currentRadius(),
+        triggerRadius: config.triggerRadiusFrac * minDim,
+        dodgeDistMin: config.dodgeMinDistFrac * minDim * distMultiplier,
+        dodgeDistMax: config.dodgeMaxDistFrac * minDim * distMultiplier,
+        dodgeDistMultiplier: distMultiplier,
+      }
+    },
   }
 }
 

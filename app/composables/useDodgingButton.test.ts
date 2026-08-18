@@ -80,6 +80,7 @@ describe('useDodgingButton', () => {
   it('registers a hit, increments clicks, and moves the button when the click lands on it', () => {
     const dodge = useDodgingButton()
     dodge.start(1, BOUNDS)
+    const before = { x: dodge.x.value, y: dodge.y.value }
     const hit = dodge.handlePointerDown({
       clientX: dodge.x.value,
       clientY: dodge.y.value,
@@ -87,8 +88,34 @@ describe('useDodgingButton', () => {
 
     expect(hit).toBe(true)
     expect(dodge.clicks.value).toBe(1)
-    expect([dodge.x.value, dodge.y.value]).not.toEqual([200, 150])
+    expect([dodge.x.value, dodge.y.value]).not.toEqual([before.x, before.y])
     dodge.stop()
+  })
+
+  it('curves through an offset point instead of moving in a straight line', () => {
+    useTickTimers()
+    vi.spyOn(Math, 'random').mockReturnValue(1) // maximum, deterministic bulge
+    const dodge = useDodgingButton()
+    dodge.start(1, BOUNDS)
+
+    const before = { x: dodge.x.value, y: dodge.y.value }
+    dodge.handlePointerDown({ clientX: before.x, clientY: before.y } as PointerEvent)
+
+    vi.advanceTimersByTime(TICK_MS * 10) // partway through the glide
+    const mid = { x: dodge.x.value, y: dodge.y.value }
+    vi.advanceTimersByTime(TICK_MS * 30) // let it fully settle at the target
+    const after = { x: dodge.x.value, y: dodge.y.value }
+    dodge.stop()
+
+    // Perpendicular distance from `mid` to the straight line between
+    // `before` and `after` — a straight-line glide would put this near 0.
+    const abx = after.x - before.x
+    const aby = after.y - before.y
+    const lineLen = Math.hypot(abx, aby)
+    const cross = Math.abs((mid.x - before.x) * aby - (mid.y - before.y) * abx)
+    const perpDist = lineLen > 0 ? cross / lineLen : 0
+
+    expect(perpDist).toBeGreaterThan(2)
   })
 
   it('shrinks radius after a hit and uses the shrunk radius for the next hit test', () => {
