@@ -39,22 +39,22 @@ afterEach(() => {
 })
 
 describe('useDodgingButton', () => {
-  it('starts at a random position within the given bounds', () => {
+  it('starts at the center of the given bounds', () => {
+    // Matches the idle button's resting position (index.vue) so the round's
+    // first dodge is a continuous reaction rather than a teleport.
     const dodge = useDodgingButton()
     dodge.start(1, BOUNDS)
-    expect(dodge.x.value).toBeGreaterThanOrEqual(0)
-    expect(dodge.x.value).toBeLessThan(BOUNDS.width)
-    expect(dodge.y.value).toBeGreaterThanOrEqual(0)
-    expect(dodge.y.value).toBeLessThan(BOUNDS.height)
+    expect(dodge.x.value).toBe(BOUNDS.width / 2)
+    expect(dodge.y.value).toBe(BOUNDS.height / 2)
     expect(dodge.bounds.value).toEqual(BOUNDS)
     dodge.stop()
   })
 
-  it('starts at the same position for the same seed', () => {
+  it('starts at the center regardless of seed', () => {
     const a = useDodgingButton()
     a.start(1, BOUNDS)
     const b = useDodgingButton()
-    b.start(1, BOUNDS)
+    b.start(2, BOUNDS)
     expect(a.x.value).toBe(b.x.value)
     expect(a.y.value).toBe(b.y.value)
     a.stop()
@@ -106,7 +106,11 @@ describe('useDodgingButton', () => {
       vi.advanceTimersByTime(TICK_MS)
     }
 
-    const mirror = createEvasionEngine({ seed: 1, bounds: BOUNDS })
+    const mirror = createEvasionEngine({
+      seed: 1,
+      bounds: BOUNDS,
+      initialCenter: { x: BOUNDS.width / 2, y: BOUNDS.height / 2 },
+    })
     const target1 = mirror.getCenter()
     mirror.testHit(target1.x, target1.y)
     for (let i = 0; i < 10; i++) {
@@ -180,7 +184,11 @@ describe('useDodgingButton', () => {
     // that makes it deterministically identical, its position tells us
     // exactly where the next click needs to land, without
     // useDodgingButton having to expose its internal engine.
-    const mirror = createEvasionEngine({ seed: 1, bounds: BOUNDS })
+    const mirror = createEvasionEngine({
+      seed: 1,
+      bounds: BOUNDS,
+      initialCenter: { x: BOUNDS.width / 2, y: BOUNDS.height / 2 },
+    })
     const mirrorCursor = { x: BOUNDS.width / 2, y: BOUNDS.height / 2 }
     function advanceBoth(ticks: number) {
       for (let i = 0; i < ticks; i++) {

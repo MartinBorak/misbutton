@@ -15,6 +15,8 @@
   }>()
   defineEmits<{ pointerdown: [e: PointerEvent] }>()
 
+  const pulseDelay = usePulseSync(2600)
+
   // The play field wraps (see shared/evasionEngine.ts), and x/y are kept
   // continuous with the button's on-screen trajectory rather than snapped to
   // the engine's internally-wrapped position — otherwise a dodge through one
@@ -67,7 +69,12 @@
       v-for="c in copies"
       :key="c.key"
       class="dodge-button"
-      :style="{ '--x': `${c.x}px`, '--y': `${c.y}px`, '--button-diameter': `${radius * 2}px` }"
+      :style="{
+        '--x': `${c.x}px`,
+        '--y': `${c.y}px`,
+        '--button-diameter': `${radius * 2}px`,
+        'animation-delay': pulseDelay,
+      }"
       type="button"
       :aria-label="c.visible ? 'Catch me!' : undefined"
       :aria-hidden="c.visible ? undefined : true"

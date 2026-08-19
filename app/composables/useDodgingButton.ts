@@ -113,7 +113,15 @@ export function useDodgingButton() {
     clicks.value = 0
     bounds.value = roundBounds
     cursor = { x: roundBounds.width / 2, y: roundBounds.height / 2 }
-    engine = createEvasionEngine({ seed, bounds: roundBounds })
+    // Screen center, matching the idle button's resting position (index.vue)
+    // so the round's first dodge is a continuous reaction rather than a
+    // teleport — must stay identical to submit.post.ts's replay, which has
+    // no other way to know where the round visually began.
+    engine = createEvasionEngine({
+      seed,
+      bounds: roundBounds,
+      initialCenter: { x: roundBounds.width / 2, y: roundBounds.height / 2 },
+    })
     syncFromEngine()
     window.addEventListener('pointermove', onPointerMove)
     intervalId = setInterval(tick, TICK_MS)
