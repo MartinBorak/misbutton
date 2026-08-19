@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -60,12 +60,22 @@ export default defineNuxtConfig({
       return url && token
         ? {
             leaderboard: { driver: 'upstash', base: 'leaderboard', url, token },
-            rounds: { driver: 'upstash', base: 'rounds', url, token },
+            // Round tokens are only valid for ~65s (ROUND_MS ± slop) and rate-limit
+            // counters reset after 60s, so nothing here needs to outlive 5 minutes.
+            rounds: { driver: 'upstash', base: 'rounds', url, token, ttl: 300 },
           }
-        : {
-            leaderboard: { driver: 'fs', base: '.data/leaderboard' },
-            rounds: { driver: 'fs', base: '.data/rounds' },
-          }
+        : (() => {
+            // fs has no TTL support, so round data (single-round-lifetime by
+            // design) just gets wiped fresh at each local dev/build start.
+            rmSync(join(fileURLToPath(new URL('.', import.meta.url)), '.data', 'rounds'), {
+              recursive: true,
+              force: true,
+            })
+            return {
+              leaderboard: { driver: 'fs', base: '.data/leaderboard' },
+              rounds: { driver: 'fs', base: '.data/rounds' },
+            }
+          })()
     })(),
   },
 
