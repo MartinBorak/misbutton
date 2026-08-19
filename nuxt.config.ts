@@ -71,6 +71,8 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      title: 'Misbutton',
+      link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
       script: [{ innerHTML: themeInitScript, type: 'text/javascript' }],
     },
   },
