@@ -39,7 +39,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
-  modules: ['@nuxt/eslint'],
+  modules: ['@nuxt/eslint', '@vercel/analytics/nuxt'],
 
   css: ['~/assets/css/main.css'],
 
@@ -52,10 +52,21 @@ export default defineNuxtConfig({
   },
 
   nitro: {
-    storage: {
-      leaderboard: { driver: 'fs', base: '.data/leaderboard' },
-      rounds: { driver: 'fs', base: '.data/rounds' },
-    },
+    // Vercel's "Upstash for Redis" integration injects KV_REST_API_* rather
+    // than the UPSTASH_REDIS_REST_* names the unstorage driver defaults to.
+    storage: (() => {
+      const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+      const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
+      return url && token
+        ? {
+            leaderboard: { driver: 'upstash', base: 'leaderboard', url, token },
+            rounds: { driver: 'upstash', base: 'rounds', url, token },
+          }
+        : {
+            leaderboard: { driver: 'fs', base: '.data/leaderboard' },
+            rounds: { driver: 'fs', base: '.data/rounds' },
+          }
+    })(),
   },
 
   app: {
