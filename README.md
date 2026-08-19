@@ -1,6 +1,6 @@
 # misbutton
 
-A button that really doesn't want to be clicked. You get 60 seconds to catch it as many times as you can — it notices your cursor coming and dodges away, so cornering it against an edge is a real, learnable strategy, not a gimmick. Top 3 all-time scores go on a global leaderboard.
+A button that really doesn't want to be clicked. You get 60 seconds to catch it as many times as you can — it notices your cursor coming and dodges away, with a real reaction delay rather than teleporting on contact, so timing your approach is a genuine skill. Top 3 all-time scores go on a global leaderboard.
 
 **Play it: [misbutton.vercel.app](https://misbutton.vercel.app)**
 
