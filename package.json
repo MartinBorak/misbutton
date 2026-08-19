@@ -19,6 +19,7 @@
   "dependencies": {
     "@upstash/redis": "^1.38.2",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "nuxt": "^4.5.2",
     "vue": "^3.5.41",
     "vue-router": "^5.2.0"

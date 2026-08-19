@@ -39,7 +39,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
-  modules: ['@nuxt/eslint', '@vercel/analytics/nuxt'],
+  modules: ['@nuxt/eslint', '@vercel/analytics/nuxt', '@vercel/speed-insights/nuxt'],
 
   css: ['~/assets/css/main.css'],
 
