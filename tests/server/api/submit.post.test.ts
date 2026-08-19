@@ -1,21 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  fakeEvent,
-  stubCreateError,
-  stubDefineEventHandler,
-  stubReadBody,
-  stubRuntimeConfig,
-  stubStorage,
-} from '~~/tests/helpers/nuxtGlobals'
+import { fakeEvent, stubServerApiBasics, stubStorage } from '~~/tests/helpers/nuxtGlobals'
 
 // submit.post.ts's `export default defineEventHandler(...)` runs at import
 // time, so defineEventHandler must be stubbed before that import happens.
-stubDefineEventHandler()
-stubReadBody()
-stubCreateError()
-stubRuntimeConfig('test-secret')
-stubStorage()
+stubServerApiBasics()
 
 const { issueRoundToken, verifyRoundToken } = await import('~~/server/utils/roundToken')
 const { getRoundResult, markRoundUsed } = await import('~~/server/utils/roundGuard')

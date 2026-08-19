@@ -223,6 +223,22 @@ export const DEFAULT_CONFIG: EngineConfig = {
   curveFactor: 0.15,
 }
 
+/** The button's radius/proximity-trigger radius at the start of a round
+ *  (hitCount 0, before radiusShrinkPerHit has applied) — the same formulas
+ *  createEvasionEngine's currentRadius()/step() use internally, factored out
+ *  so callers that need to match a fresh round's sizing before an engine
+ *  instance exists (e.g. index.vue's idle button) don't hand-copy them. */
+export function initialButtonRadius(bounds: Bounds, config: EngineConfig = DEFAULT_CONFIG): number {
+  return config.buttonRadiusFrac * Math.min(bounds.width, bounds.height)
+}
+
+export function initialTriggerRadius(
+  bounds: Bounds,
+  config: EngineConfig = DEFAULT_CONFIG,
+): number {
+  return config.triggerRadiusFrac * Math.min(bounds.width, bounds.height)
+}
+
 /** Same curve as the old CSS `cubic-bezier(0.16, 1, 0.3, 1)` transition,
  *  evaluated in JS (Newton-Raphson, falling back to bisection) so the glide
  *  keeps its fast-start/slow-tail feel while being driven tick-by-tick

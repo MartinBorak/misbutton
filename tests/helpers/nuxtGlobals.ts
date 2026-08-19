@@ -78,3 +78,17 @@ export function stubReadBody() {
 export function fakeEvent(body: unknown) {
   return { _body: body }
 }
+
+/**
+ * The minimal Nitro-global surface every server/api/round/*.post.ts test
+ * needs stubbed before its handler module is imported (each route also
+ * stubs its own route-specific globals — issueRoundToken, wouldQualify,
+ * etc. — separately, on top of this).
+ */
+export function stubServerApiBasics(roundSecret = 'test-secret') {
+  stubDefineEventHandler()
+  stubReadBody()
+  stubCreateError()
+  stubRuntimeConfig(roundSecret)
+  stubStorage()
+}

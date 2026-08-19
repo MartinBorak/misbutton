@@ -11,7 +11,7 @@ import {
 stubVueLifecycle()
 stubRequestAnimationFrame()
 
-const { useDodgingButton } = await import('./useDodgingButton')
+const { useDodgingButton, RIPPLE_DURATION_MS } = await import('./useDodgingButton')
 
 const BOUNDS = { width: 400, height: 300 }
 const TICK_MS = 50
@@ -164,7 +164,7 @@ describe('useDodgingButton', () => {
     dodge.handlePointerDown({ clientX: dodge.x.value, clientY: dodge.y.value } as PointerEvent)
 
     expect(dodge.ripples.value.length).toBe(1)
-    vi.advanceTimersByTime(1500)
+    vi.advanceTimersByTime(RIPPLE_DURATION_MS)
     expect(dodge.ripples.value.length).toBe(0)
     dodge.stop()
   })

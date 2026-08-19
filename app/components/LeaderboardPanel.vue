@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import type { LeaderboardEntry } from '~/composables/useLeaderboard'
+  import type { LeaderboardEntry } from '#shared/leaderboard'
 
   defineProps<{ entries: LeaderboardEntry[] }>()
 </script>

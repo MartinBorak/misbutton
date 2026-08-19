@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { DEFAULT_CONFIG } from '#shared/evasionEngine'
+  import { initialButtonRadius, initialTriggerRadius } from '#shared/evasionEngine'
 
   const pointerCapable = usePointerCapability()
   const { theme, toggle } = useTheme()
@@ -68,15 +68,15 @@
   // latency reads as the button freezing right as the cursor reaches it.
   const IDLE_TRIGGER_RADIUS_MULTIPLIER = 2
   const idleButtonDiameter = ref(0)
-  const idlePulseDelay = usePulseSync(2600)
+  const idlePulseDelay = usePulseSync()
   let idleCenter = { x: 0, y: 0 }
   let idleTriggerRadius = 0
 
   function computeIdleGeometry() {
-    const minDim = Math.min(window.innerWidth, window.innerHeight)
-    idleButtonDiameter.value = DEFAULT_CONFIG.buttonRadiusFrac * minDim * 2
-    idleTriggerRadius = DEFAULT_CONFIG.triggerRadiusFrac * minDim * IDLE_TRIGGER_RADIUS_MULTIPLIER
-    idleCenter = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+    const bounds = { width: window.innerWidth, height: window.innerHeight }
+    idleButtonDiameter.value = initialButtonRadius(bounds) * 2
+    idleTriggerRadius = initialTriggerRadius(bounds) * IDLE_TRIGGER_RADIUS_MULTIPLIER
+    idleCenter = { x: bounds.width / 2, y: bounds.height / 2 }
   }
 
   function onIdlePointerMove(e: PointerEvent) {
@@ -142,6 +142,7 @@
         class="idle-button"
         :style="{
           '--button-diameter': `${idleButtonDiameter}px`,
+          '--idle-pulse-duration': `${IDLE_PULSE_PERIOD_MS}ms`,
           'animation-delay': idlePulseDelay,
         }"
         aria-hidden="true"

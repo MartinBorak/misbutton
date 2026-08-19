@@ -12,7 +12,11 @@ export interface DodgeLog {
   hits: { tick: number; x: number; y: number }[]
 }
 
-const RIPPLE_TICKS = Math.round(1500 / TICK_MS) // matches the hit-ring CSS animation duration in main.css
+// Drives both the ripple's lifetime here and the hit-ring animation's
+// duration in main.css (set as a CSS custom property, see DodgeButton.vue) —
+// one source of truth instead of two numbers that have to be kept in sync by hand.
+export const RIPPLE_DURATION_MS = 1500
+const RIPPLE_TICKS = Math.round(RIPPLE_DURATION_MS / TICK_MS)
 
 // Drives shared/evasionEngine.ts on a fixed real-time tick and owns everything
 // needed to both render the button and reconstruct the round for server replay.
@@ -84,7 +88,7 @@ export function useDodgingButton() {
     const timeoutId = setTimeout(() => {
       ripples.value = ripples.value.filter((r) => r !== id)
       rippleTimeouts.delete(timeoutId)
-    }, RIPPLE_TICKS * TICK_MS)
+    }, RIPPLE_DURATION_MS)
     rippleTimeouts.add(timeoutId)
   }
 

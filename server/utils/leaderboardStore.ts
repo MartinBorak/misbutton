@@ -2,11 +2,7 @@
 // nothing here references a driver by name, so switching hosts later is a
 // config-only change in nuxt.config.ts.
 
-export interface LeaderboardEntry {
-  name: string
-  clicks: number
-  achievedAt: number
-}
+import type { LeaderboardEntry } from '#shared/leaderboard'
 
 const KEY = 'leaderboard:top'
 const BUFFER_SIZE = 10

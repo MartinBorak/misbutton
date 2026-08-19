@@ -15,7 +15,7 @@
   }>()
   defineEmits<{ pointerdown: [e: PointerEvent] }>()
 
-  const pulseDelay = usePulseSync(2600)
+  const pulseDelay = usePulseSync()
 
   // The play field wraps (see shared/evasionEngine.ts), and x/y are kept
   // continuous with the button's on-screen trajectory rather than snapped to
@@ -73,6 +73,8 @@
         '--x': `${c.x}px`,
         '--y': `${c.y}px`,
         '--button-diameter': `${radius * 2}px`,
+        '--idle-pulse-duration': `${IDLE_PULSE_PERIOD_MS}ms`,
+        '--ripple-duration': `${RIPPLE_DURATION_MS}ms`,
         'animation-delay': pulseDelay,
       }"
       type="button"

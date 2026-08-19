@@ -1,8 +1,4 @@
-export interface LeaderboardEntry {
-  name: string
-  clicks: number
-  achievedAt: number
-}
+import type { LeaderboardEntry } from '#shared/leaderboard'
 
 export function useLeaderboard() {
   const entries = ref<LeaderboardEntry[]>([])

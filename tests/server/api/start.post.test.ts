@@ -1,19 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  fakeEvent,
-  stubCreateError,
-  stubDefineEventHandler,
-  stubReadBody,
-  stubRuntimeConfig,
-  stubStorage,
-} from '~~/tests/helpers/nuxtGlobals'
+import { fakeEvent, stubServerApiBasics, stubStorage } from '~~/tests/helpers/nuxtGlobals'
 
-stubDefineEventHandler()
-stubReadBody()
-stubCreateError()
-stubRuntimeConfig('test-secret')
-stubStorage()
+stubServerApiBasics()
 
 const { issueRoundToken } = await import('~~/server/utils/roundToken')
 const { checkRateLimit } = await import('~~/server/utils/roundGuard')
