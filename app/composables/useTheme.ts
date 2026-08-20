@@ -1,20 +1,26 @@
-type Theme = 'light' | 'dark'
+const ColorTheme = {
+  LIGHT: 'light',
+  DARK: 'dark',
+} as const
 
-// The actual pre-paint decision happens in the inline head script (nuxt.config.ts),
-// which already stamped documentElement.dataset.theme before Vue mounted — this
-// composable just mirrors that into reactive state and persists explicit toggles.
+type Theme = (typeof ColorTheme)[keyof typeof ColorTheme]
+
+// colorMode.value is typed as a plain string (the module allows custom
+// modes beyond dark/light), so map it down to the theme values this app uses.
+const THEME_BY_COLOR_MODE: Record<string, Theme> = {
+  [ColorTheme.LIGHT]: ColorTheme.LIGHT,
+  [ColorTheme.DARK]: ColorTheme.DARK,
+}
+
+// The pre-paint decision (localStorage / prefers-color-scheme) and the
+// data-theme attribute are both handled by @nuxtjs/color-mode.
 export function useTheme() {
-  const theme = useState<Theme>('theme', () => 'light')
+  const colorMode = useColorMode()
 
-  onMounted(() => {
-    theme.value = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
-  })
+  const theme = computed(() => THEME_BY_COLOR_MODE[colorMode.value] ?? ColorTheme.LIGHT)
 
   function toggle() {
-    const next: Theme = theme.value === 'dark' ? 'light' : 'dark'
-    theme.value = next
-    document.documentElement.dataset.theme = next
-    localStorage.setItem('theme', next)
+    colorMode.preference = theme.value === ColorTheme.DARK ? ColorTheme.LIGHT : ColorTheme.DARK
   }
 
   return { theme, toggle }
