@@ -1,12 +1,12 @@
-const MIN_DIM = 320
-const MAX_DIM = 10000
+const MIN_DIMENSION = 320
+const MAX_DIMENSION = 10000
 
-function clampDim(value: unknown): number {
+function clampDimension(value: unknown): number {
   const n = Math.round(Number(value))
   if (!Number.isFinite(n)) {
-    return MIN_DIM
+    return MIN_DIMENSION
   }
-  return Math.min(Math.max(n, MIN_DIM), MAX_DIM)
+  return Math.min(Math.max(n, MIN_DIMENSION), MAX_DIMENSION)
 }
 
 export default defineEventHandler(async (event) => {
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 429, statusMessage: 'Too many rounds started — slow down.' })
   }
 
-  const bounds = { width: clampDim(body?.width), height: clampDim(body?.height) }
+  const bounds = { width: clampDimension(body?.width), height: clampDimension(body?.height) }
   const bot = body?.webdriver === true
 
   const { roundId, token, seed, startedAt } = issueRoundToken(bounds, bot)
