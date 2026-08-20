@@ -22,7 +22,7 @@ const handlerModule = await import('~~/server/api/round/submit.post')
 const handler = handlerModule.default as (event: unknown) => Promise<unknown>
 
 const TICK_MS = 50
-const ROUND_MS = 60_000 // import.meta.dev is false under plain vitest — see roundConfig.test.ts
+const ROUND_MS = 60_000
 const EXPECTED_TICKS = Math.round(ROUND_MS / TICK_MS)
 const BOUNDS = { width: 1000, height: 800 }
 

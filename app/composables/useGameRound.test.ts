@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-import { ROUND_MS } from '~~/shared/roundConfig' // resolves to the same value useGameRound.ts sees (import.meta.dev is false under plain vitest)
+import { ROUND_MS } from '~~/shared/roundConfig'
 import { stubFetch, stubNavigator, stubVueLifecycle, stubWindow } from '~~/tests/helpers/vueGlobals'
 
 stubVueLifecycle()
