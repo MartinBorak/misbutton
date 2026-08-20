@@ -1,6 +1,8 @@
-// Pure, DOM-free deterministic simulation of the dodging button.
-// Used identically by the client (real-time rendering) and the server
-// (replay verification of a submitted round) — see server/api/round/submit.post.ts.
+/**
+ * Pure, DOM-free deterministic simulation of the dodging button.
+ * Used identically by the client (real-time rendering) and the server
+ * (replay verification of a submitted round) — see server/api/round/submit.post.ts.
+ */
 
 export interface Vec2 {
   x: number
@@ -20,44 +22,75 @@ export interface HitEvent {
 }
 
 export interface EngineConfig {
-  tickMs: number
-  /** Base button radius, as a fraction of the smaller bounds dimension —
+  /**
+   * Base button radius, as a fraction of the smaller bounds dimension —
    *  not an absolute pixel count — so the button is the same relative size
-   *  on any device instead of favoring a bigger or smaller one. */
+   * on any device instead of favoring a bigger or smaller one.
+   */
   buttonRadiusFrac: number
-  /** How close the cursor needs to get before the button notices and
-   *  dodges, as a fraction of the smaller bounds dimension. */
+  /**
+   * How close the cursor needs to get before the button notices and
+   * dodges, as a fraction of the smaller bounds dimension.
+   */
   triggerRadiusFrac: number
+  /**
+   * Ticks between the cursor entering the trigger radius and the button
+   * actually dodging — its simulated "reaction time".
+   */
   reactionDelayTicks: number
+  /**
+   * Minimum ticks after a dodge before proximity can arm another one, so
+   * a lingering cursor can't trigger dodges back-to-back.
+   */
   cooldownTicks: number
-  /** Dodge distance, as a fraction of the smaller bounds dimension — not an
-   *  absolute pixel count — so movement covers the same relative amount of
-   *  screen on any device instead of favoring a bigger or smaller one. */
+  /**
+   * Minimum dodge distance, as a fraction of the smaller bounds dimension
+   *  — not an absolute pixel count — so movement covers the same relative
+   *  amount of screen on any device instead of favoring a bigger or
+   * smaller one.
+   */
   dodgeMinDistFrac: number
+  /** Maximum dodge distance, same units as dodgeMinDistFrac. */
   dodgeMaxDistFrac: number
+  /**
+   * Half-angle of the random cone applied around the ideal flee/center-pull
+   * direction, so dodge angles aren't perfectly predictable.
+   */
   coneHalfAngleRad: number
-  /** How strongly a dodge is pulled toward the field center on top of
+  /**
+   * How strongly a dodge is pulled toward the field center on top of
    *  fleeing the cursor: 0 = pure flee, 1 = ignores the cursor and always
-   *  heads for center. Keeps the button from congregating near the edges. */
+   * heads for center. Keeps the button from congregating near the edges.
+   */
   centerPullWeight: number
-  /** Multiplied into the button's radius after every successful hit, so it
-   *  gets progressively smaller (and harder to click) as the score climbs. */
+  /**
+   * Multiplied into the button's radius after every successful hit, so it
+   * gets progressively smaller (and harder to click) as the score climbs.
+   */
   radiusShrinkPerHit: number
-  /** Radius never shrinks below this fraction of the smaller bounds
-   *  dimension, so the button stays clickable. */
+  /**
+   * Radius never shrinks below this fraction of the smaller bounds
+   * dimension, so the button stays clickable.
+   */
   minButtonRadiusFrac: number
-  /** Multiplied into dodgeMinDistFrac/dodgeMaxDistFrac after every
-   *  successful hit, so dodges cover more ground as the score climbs. */
+  /**
+   * Multiplied into dodgeMinDistFrac/dodgeMaxDistFrac after every
+   * successful hit, so dodges cover more ground as the score climbs.
+   */
   dodgeDistGrowthPerHit: number
   /** Distance growth never multiplies past this, so dodges stay bounded. */
   maxDodgeDistMultiplier: number
-  /** How many ticks a dodge takes to glide from its start to its target.
+  /**
+   * How many ticks a dodge takes to glide from its start to its target.
    *  The glide is part of the deterministic simulation (not just a client
    *  visual effect) so the position hit-testing and evasion actually use is
-   *  always the same one rendered on screen — see advanceGlide/startGlide. */
+   * always the same one rendered on screen — see advanceGlide/startGlide.
+   */
   glideTicks: number
-  /** Max sideways bulge of the dodge's curved path, as a fraction of the
-   *  straight-line distance between its start and target. */
+  /**
+   * Max sideways bulge of the dodge's curved path, as a fraction of the
+   * straight-line distance between its start and target.
+   */
   curveFactor: number
 }
 
@@ -72,38 +105,38 @@ export const TICK_MS = 50
 export const HIT_TOLERANCE_PX = 4
 
 /**
- * The client (browser V8) and server (Node V8) each independently replay
- * this engine's dodge/glide math, and the anti-cheat model depends on both
- * landing on the exact same result. ECMA-262 only guarantees +, -, *, / and
- * Math.sqrt to be bit-identical across engines — Math.sin/cos/atan2/pow are
- * explicitly *not* required to match. That alone sounds academic, but the
- * dodge mechanic is a feedback loop (every dodge's angle is computed from
- * the position the previous dodge landed on), which turns a single
- * last-bit difference into exponential growth: verified directly against a
- * real Chrome build vs. Node, identical inputs stay bit-identical for
- * about 150-200 dodges, then the error roughly 10x's every ~20 dodges and
- * detonates into total chaos within another 50-100 — comfortably within a
- * single round once proximity-triggered dodges are counted alongside hits.
- * These reimplementations use only the portable primitives, so client and
- * server always agree exactly, no matter how long the round runs.
+ * sin/cos/atan below are reimplemented from Taylor series using only +, -, *
+ * (Math.sin/cos/atan2 aren't required to be bit-identical across JS engines,
+ * but client and server must land on the exact same dodge math every tick).
+ * evalPoly evaluates one such series via Horner's method from a coefficient
+ * list, so each reimplementation is just its list.
+ */
+function evalPoly(u: number, coeffs: readonly number[]): number {
+  return coeffs.reduce((p, c) => p * u + c, 0)
+}
+
+// sin(r) = r·(1 − r²/3! + r⁴/5! − r⁶/7! + r⁸/9! − r¹⁰/11!)
+const SIN_SMALL_COEFFS = [-1 / 39916800, 1 / 362880, -1 / 5040, 1 / 120, -1 / 6, 1]
+// cos(r) = 1 − r²/2! + r⁴/4! − r⁶/6! + r⁸/8! − r¹⁰/10!
+const COS_SMALL_COEFFS = [-1 / 3628800, 1 / 40320, -1 / 720, 1 / 24, -1 / 2, 1]
+
+/**
+ * Both valid for |r| <= pi/4 (see reduceToOctant) — the Taylor series
+ * converge to within ~1e-10 there, far tighter than gameplay needs.
  */
 function portableSinSmall(r: number): number {
-  // Valid for |r| <= pi/4 (see reduceToOctant) — Taylor series converges to
-  // within ~1e-10 there, far tighter than gameplay needs.
-  const u = r * r
-  const p =
-    1 + u * (-1 / 6 + u * (1 / 120 + u * (-1 / 5040 + u * (1 / 362880 + u * (-1 / 39916800)))))
-  return r * p
+  return r * evalPoly(r * r, SIN_SMALL_COEFFS)
 }
 
 function portableCosSmall(r: number): number {
-  const u = r * r
-  return 1 + u * (-1 / 2 + u * (1 / 24 + u * (-1 / 720 + u * (1 / 40320 + u * (-1 / 3628800)))))
+  return evalPoly(r * r, COS_SMALL_COEFFS)
 }
 
-/** Reduces any angle to an octant offset r in [-pi/4, pi/4] plus which of
- *  the 4 quadrant-pairs it fell in, using only +, -, *, / and Math.round
- *  (exact/portable — unlike the trig functions this replaces). */
+/**
+ * Reduces any angle to an octant offset r in [-pi/4, pi/4] plus which of
+ * the 4 quadrant-pairs it fell in, using only +, -, *, / and Math.round
+ * (exact/portable — unlike the trig functions this replaces).
+ */
 function reduceToOctant(x: number): { r: number; quadrant: number } {
   const twoPi = 2 * Math.PI
   const x1 = x - twoPi * Math.round(x / twoPi) // now in roughly [-pi, pi]
@@ -114,61 +147,55 @@ function reduceToOctant(x: number): { r: number; quadrant: number } {
   return { r, quadrant }
 }
 
-function portableSin(x: number): number {
+/**
+ * Callers always need sin and cos of the same angle together (see
+ * dodgeOffset), so this computes both from one octant reduction instead of
+ * making callers pay for reduceToOctant/portableSinSmall/portableCosSmall
+ * twice over to get the second value.
+ */
+function portableSinCos(x: number): { sin: number; cos: number } {
   const { r, quadrant } = reduceToOctant(x)
   const s = portableSinSmall(r)
   const c = portableCosSmall(r)
   switch (quadrant) {
     case 0:
-      return s
+      return { sin: s, cos: c }
     case 1:
-      return c
+      return { sin: c, cos: -s }
     case 2:
-      return -s
+      return { sin: -s, cos: -c }
     default:
-      return -c
+      return { sin: -c, cos: s }
   }
 }
 
-function portableCos(x: number): number {
-  const { r, quadrant } = reduceToOctant(x)
-  const s = portableSinSmall(r)
-  const c = portableCosSmall(r)
-  switch (quadrant) {
-    case 0:
-      return c
-    case 1:
-      return -s
-    case 2:
-      return -c
-    default:
-      return s
-  }
-}
+// atan(x) = x·(1 − x²/3 + x⁴/5 − x⁶/7 + x⁸/9 − x¹⁰/11 + x¹²/13)
+const ATAN_SMALL_COEFFS = [1 / 13, -1 / 11, 1 / 9, -1 / 7, 1 / 5, -1 / 3, 1]
 
+/**
+ * Valid for |x| <= 0.01 (see portableAtan) — Taylor series converges to
+ * within ~1e-15 there.
+ */
 function portableAtanSmall(x: number): number {
-  // Valid for |x| <= 0.01 (see portableAtan) — Taylor series converges to
-  // within ~1e-15 there.
-  const x2 = x * x
-  return (
-    x * (1 - x2 * (1 / 3 - x2 * (1 / 5 - x2 * (1 / 7 - x2 * (1 / 9 - x2 * (1 / 11 - x2 / 13))))))
-  )
+  return x * evalPoly(x * x, ATAN_SMALL_COEFFS)
+}
+
+/**
+ * Recursively halves the *angle* via the tangent half-angle identity
+ * (tan(θ/2) = tan(θ) / (1 + sec(θ))) until it's small enough for
+ * portableAtanSmall's Taylor series to converge fast, then undoes the
+ * halving on the way back out. Uses only +, -, *, / and Math.sqrt.
+ */
+function halveUntilSmall(ax: number, halvings: number): number {
+  if (ax <= 0.01 || halvings >= 60) {
+    return portableAtanSmall(ax) * intPow(2, halvings)
+  }
+  return halveUntilSmall(ax / (1 + Math.sqrt(1 + ax * ax)), halvings + 1)
 }
 
 function portableAtan(x: number): number {
-  // Repeatedly halve the *angle* via the tangent half-angle identity
-  // (tan(θ/2) = tan(θ) / (1 + sec(θ))) until it's small enough for the
-  // Taylor series to converge fast, then undo the halving on the result.
-  // Uses only +, -, *, / and Math.sqrt.
-  const negative = x < 0
-  let ax = negative ? -x : x
-  let halvings = 0
-  while (ax > 0.01 && halvings < 60) {
-    ax = ax / (1 + Math.sqrt(1 + ax * ax))
-    halvings++
-  }
-  const result = portableAtanSmall(ax) * intPow(2, halvings)
-  return negative ? -result : result
+  const result = halveUntilSmall(x < 0 ? -x : x, 0)
+  return x < 0 ? -result : result
 }
 
 function portableAtan2(y: number, x: number): number {
@@ -176,7 +203,8 @@ function portableAtan2(y: number, x: number): number {
     return portableAtan(y / x)
   }
   if (x < 0) {
-    return y >= 0 ? portableAtan(y / x) + Math.PI : portableAtan(y / x) - Math.PI
+    const base = portableAtan(y / x)
+    return y >= 0 ? base + Math.PI : base - Math.PI
   }
   if (y > 0) {
     return Math.PI / 2
@@ -187,26 +215,20 @@ function portableAtan2(y: number, x: number): number {
   return 0
 }
 
-/** Math.pow for a non-negative integer exponent, via exponentiation by
- *  squaring — exact/portable since it only ever multiplies (unlike
- *  Math.pow itself, which ECMA-262 doesn't require to be bit-identical
- *  across engines). */
-function intPow(base: number, exponent: number): number {
-  let result = 1
-  let b = base
-  let e = exponent
-  while (e > 0) {
-    if (e & 1) {
-      result *= b
-    }
-    b *= b
-    e >>= 1
+/**
+ * Math.pow for a non-negative integer exponent, via exponentiation by
+ * squaring — exact/portable since it only ever multiplies (unlike
+ * Math.pow itself, which ECMA-262 doesn't require to be bit-identical
+ * across engines).
+ */
+function intPow(base: number, exponent: number, result = 1): number {
+  if (exponent <= 0) {
+    return result
   }
-  return result
+  return intPow(base * base, exponent >> 1, exponent & 1 ? result * base : result)
 }
 
 export const DEFAULT_CONFIG: EngineConfig = {
-  tickMs: TICK_MS,
   buttonRadiusFrac: 0.08,
   triggerRadiusFrac: 0.2,
   reactionDelayTicks: 2, // ~100ms
@@ -223,11 +245,13 @@ export const DEFAULT_CONFIG: EngineConfig = {
   curveFactor: 0.15,
 }
 
-/** The button's radius/proximity-trigger radius at the start of a round
- *  (hitCount 0, before radiusShrinkPerHit has applied) — the same formulas
- *  createEvasionEngine's currentRadius()/step() use internally, factored out
- *  so callers that need to match a fresh round's sizing before an engine
- *  instance exists (e.g. index.vue's idle button) don't hand-copy them. */
+/**
+ * The button's radius/proximity-trigger radius at the start of a round
+ * (hitCount 0, before radiusShrinkPerHit has applied) — the same formulas
+ * createEvasionEngine's currentRadius()/step() use internally, factored out
+ * so callers that need to match a fresh round's sizing before an engine
+ * instance exists (e.g. index.vue's idle button) don't hand-copy them.
+ */
 export function initialButtonRadius(bounds: Bounds, config: EngineConfig = DEFAULT_CONFIG): number {
   return config.buttonRadiusFrac * Math.min(bounds.width, bounds.height)
 }
@@ -239,19 +263,32 @@ export function initialTriggerRadius(
   return config.triggerRadiusFrac * Math.min(bounds.width, bounds.height)
 }
 
-/** Same curve as the old CSS `cubic-bezier(0.16, 1, 0.3, 1)` transition,
- *  evaluated in JS (Newton-Raphson, falling back to bisection) so the glide
- *  keeps its fast-start/slow-tail feel while being driven tick-by-tick
- *  instead of by a native CSS transition. */
+/**
+ * Same curve as the old CSS `cubic-bezier(0.16, 1, 0.3, 1)` transition,
+ * evaluated in JS (Newton-Raphson, falling back to bisection) so the glide
+ * keeps its fast-start/slow-tail feel while being driven tick-by-tick
+ * instead of by a native CSS transition. The control points imply P0=(0,0)
+ * and P3=(1,1), so the cubic reduces to a plain polynomial in t — its
+ * coefficients are precomputed once per curve so every sample/derivative
+ * below is a 3-term Horner evaluation instead of re-expanding (1-t) terms.
+ */
 function cubicBezierEase(x1: number, y1: number, x2: number, y2: number): (t: number) => number {
+  const cx = 3 * x1
+  const bx = 3 * (x2 - x1) - cx
+  const ax = 1 - cx - bx
+
+  const cy = 3 * y1
+  const by = 3 * (y2 - y1) - cy
+  const ay = 1 - cy - by
+
   function sampleX(t: number): number {
-    return 3 * (1 - t) * (1 - t) * t * x1 + 3 * (1 - t) * t * t * x2 + t * t * t
+    return ((ax * t + bx) * t + cx) * t
   }
   function sampleY(t: number): number {
-    return 3 * (1 - t) * (1 - t) * t * y1 + 3 * (1 - t) * t * t * y2 + t * t * t
+    return ((ay * t + by) * t + cy) * t
   }
   function sampleXDerivative(t: number): number {
-    return 3 * (1 - t) * (1 - t) * x1 + 6 * (1 - t) * t * (x2 - x1) + 3 * t * t * (1 - x2)
+    return (3 * ax * t + 2 * bx) * t + cx
   }
 
   function solveXForT(x: number): number {
@@ -296,9 +333,12 @@ const glideEase = cubicBezierEase(0.16, 1, 0.3, 1)
 
 function quadBezierPoint(p0: Vec2, p1: Vec2, p2: Vec2, t: number): Vec2 {
   const mt = 1 - t
+  const mt2 = mt * mt
+  const t2 = t * t
+  const mtT2 = 2 * mt * t
   return {
-    x: mt * mt * p0.x + 2 * mt * t * p1.x + t * t * p2.x,
-    y: mt * mt * p0.y + 2 * mt * t * p1.y + t * t * p2.y,
+    x: mt2 * p0.x + mtT2 * p1.x + t2 * p2.x,
+    y: mt2 * p0.y + mtT2 * p1.y + t2 * p2.y,
   }
 }
 
@@ -314,9 +354,11 @@ export function createRng(seed: number): () => number {
   }
 }
 
-// The play field wraps like a torus (Asteroids-style) instead of walling the
-// button in, so it can dodge through an edge and reappear on the opposite
-// side — see DodgeButton.vue for the matching peek-through render.
+/**
+ * The play field wraps like a torus (Asteroids-style) instead of walling the
+ * button in, so it can dodge through an edge and reappear on the opposite
+ * side — see DodgeButton.vue for the matching peek-through render.
+ */
 function wrapToBounds(p: Vec2, bounds: Bounds): Vec2 {
   return {
     x: ((p.x % bounds.width) + bounds.width) % bounds.width,
@@ -362,20 +404,24 @@ function dodgeOffset(
   const mag = Math.sqrt(dx * dx + dy * dy)
   const fleeAngle = mag < 1e-6 ? rng() * Math.PI * 2 : portableAtan2(dy, dx)
 
-  // Blend the flee direction with a small pull toward the field center
-  // (both as unit vectors, so the blend stays direction-only) — otherwise
-  // repeatedly fleeing the cursor tends to walk the button into a corner
-  // and leave it hugging the edges. `center` is already canonical (in
-  // [0, bounds)), so the direct vector to the middle is already the
-  // shortest one — no wrap-aware math needed here.
+  /**
+   * Blend the flee direction with a small pull toward the field center
+   * (both as unit vectors, so the blend stays direction-only) — otherwise
+   * repeatedly fleeing the cursor tends to walk the button into a corner
+   * and leave it hugging the edges. `center` is already canonical (in
+   * [0, bounds)), so the direct vector to the middle is already the
+   * shortest one — no wrap-aware math needed here.
+   */
   const toCenter = { x: bounds.width / 2 - center.x, y: bounds.height / 2 - center.y }
   const toCenterMag = Math.sqrt(toCenter.x * toCenter.x + toCenter.y * toCenter.y)
-  const flee = { x: portableCos(fleeAngle), y: portableSin(fleeAngle) }
+  const fleeSinCos = portableSinCos(fleeAngle)
+  const flee = { x: fleeSinCos.cos, y: fleeSinCos.sin }
   const pull =
     toCenterMag < 1e-6 ? flee : { x: toCenter.x / toCenterMag, y: toCenter.y / toCenterMag }
+  const fleeWeight = 1 - config.centerPullWeight
   const blended = {
-    x: flee.x * (1 - config.centerPullWeight) + pull.x * config.centerPullWeight,
-    y: flee.y * (1 - config.centerPullWeight) + pull.y * config.centerPullWeight,
+    x: flee.x * fleeWeight + pull.x * config.centerPullWeight,
+    y: flee.y * fleeWeight + pull.y * config.centerPullWeight,
   }
   const blendedMag = Math.sqrt(blended.x * blended.x + blended.y * blended.y)
   const baseAngle = blendedMag < 1e-6 ? fleeAngle : portableAtan2(blended.y, blended.x)
@@ -384,13 +430,16 @@ function dodgeOffset(
   const distFrac =
     config.dodgeMinDistFrac + rng() * (config.dodgeMaxDistFrac - config.dodgeMinDistFrac)
   const dist = distFrac * Math.min(bounds.width, bounds.height) * distMultiplier
-  return { x: portableCos(angle) * dist, y: portableSin(angle) * dist }
+  const angleSinCos = portableSinCos(angle)
+  return { x: angleSinCos.cos * dist, y: angleSinCos.sin * dist }
 }
 
-/** Snapshot of the values that drift over a round as the progressive
- *  mechanics kick in — for the dev-only HUD readout, nothing gameplay
- *  depends on this. All distances are absolute pixels for this engine's
- *  actual bounds, already resolved from the *Frac config fractions. */
+/**
+ * Snapshot of the values that drift over a round as the progressive
+ * mechanics kick in — for the dev-only HUD readout, nothing gameplay
+ * depends on this. All distances are absolute pixels for this engine's
+ * actual bounds, already resolved from the *Frac config fractions.
+ */
 export interface EngineDebugInfo {
   tick: number
   hitCount: number
@@ -416,9 +465,11 @@ export interface EvasionEngine {
    */
   getRawCenter(): Vec2
   getTick(): number
-  /** Current button radius: shrinks by radiusShrinkPerHit on every
-   *  successful hit, floored at minButtonRadiusFrac. Drives both hit-testing
-   *  and the rendered size, so the two never drift out of sync. */
+  /**
+   * Current button radius: shrinks by radiusShrinkPerHit on every
+   * successful hit, floored at minButtonRadiusFrac. Drives both hit-testing
+   * and the rendered size, so the two never drift out of sync.
+   */
   getRadius(): number
   getDebugInfo(): EngineDebugInfo
 }
@@ -431,9 +482,11 @@ export function createEvasionEngine(opts: {
 }): EvasionEngine {
   const config: EngineConfig = { ...DEFAULT_CONFIG, ...opts.config }
   const rng = createRng(opts.seed)
-  // Drawn from the same seeded rng as everything else, so the client
-  // (predicting live) and the server (replaying the submitted round) agree
-  // on where the round actually started without needing to transmit it.
+  /**
+   * Drawn from the same seeded rng as everything else, so the client
+   * (predicting live) and the server (replaying the submitted round) agree
+   * on where the round actually started without needing to transmit it.
+   */
   let center: Vec2 = opts.initialCenter ?? {
     x: rng() * opts.bounds.width,
     y: rng() * opts.bounds.height,
@@ -444,13 +497,15 @@ export function createEvasionEngine(opts: {
   let tick = 0
   let hitCount = 0
 
-  // The dodge itself is part of the deterministic simulation, not a
-  // client-side visual layered on top: `center`/`rawCenter` glide along a
-  // curved path over `glideTicks` ticks instead of jumping straight to the
-  // target, and hit-testing/evasion both read the position as it glides.
-  // Otherwise the position everything reacts to jumps ahead of what's ever
-  // rendered, and both clicking and re-dodging effectively require waiting
-  // for the (purely cosmetic) animation to finish catching up.
+  /**
+   * The dodge itself is part of the deterministic simulation, not a
+   * client-side visual layered on top: `center`/`rawCenter` glide along a
+   * curved path over `glideTicks` ticks instead of jumping straight to the
+   * target, and hit-testing/evasion both read the position as it glides.
+   * Otherwise the position everything reacts to jumps ahead of what's ever
+   * rendered, and both clicking and re-dodging effectively require waiting
+   * for the (purely cosmetic) animation to finish catching up.
+   */
   let glideStart: Vec2 = rawCenter
   let glideControl: Vec2 = rawCenter
   let glideTarget: Vec2 = rawCenter
@@ -460,17 +515,21 @@ export function createEvasionEngine(opts: {
     return Math.min(config.maxDodgeDistMultiplier, intPow(config.dodgeDistGrowthPerHit, hitCount))
   }
 
-  // Starts a new glide from wherever the button currently is (which may
-  // itself be mid-glide) toward a freshly-computed dodge target — so a
-  // dodge decided before the previous one finished simply redirects from
-  // its current position instead of waiting.
+  /**
+   * Starts a new glide from wherever the button currently is (which may
+   * itself be mid-glide) toward a freshly-computed dodge target — so a
+   * dodge decided before the previous one finished simply redirects from
+   * its current position instead of waiting.
+   */
   function startGlide(awayFrom: Vec2) {
     const offset = dodgeOffset(center, awayFrom, rng, opts.bounds, config, currentDistMultiplier())
     const dist = Math.sqrt(offset.x * offset.x + offset.y * offset.y)
-    // Perpendicular to the straight line, so the curve bulges to one side
-    // instead of overshooting past the target. Drawn from the same seeded
-    // rng as the rest of the dodge — this bulge is part of the actual
-    // simulated path now, not just cosmetic, so it has to be deterministic.
+    /**
+     * Perpendicular to the straight line, so the curve bulges to one side
+     * instead of overshooting past the target. Drawn from the same seeded
+     * rng as the rest of the dodge — this bulge is part of the actual
+     * simulated path now, not just cosmetic, so it has to be deterministic.
+     */
     const perp = dist < 1e-6 ? { x: 0, y: 0 } : { x: -offset.y / dist, y: offset.x / dist }
     const bulge = (rng() * 2 - 1) * dist * config.curveFactor
     glideStart = rawCenter
@@ -482,8 +541,10 @@ export function createEvasionEngine(opts: {
     glideElapsedTicks = 0
   }
 
-  // Advances the current glide by one tick (a no-op once it's settled at
-  // its target) and syncs center/rawCenter to the result.
+  /**
+   * Advances the current glide by one tick (a no-op once it's settled at
+   * its target) and syncs center/rawCenter to the result.
+   */
   function advanceGlide() {
     if (glideElapsedTicks >= config.glideTicks) {
       return
@@ -547,13 +608,14 @@ export function createEvasionEngine(opts: {
     getRadius: currentRadius,
     getDebugInfo: () => {
       const distMultiplier = currentDistMultiplier()
+      const dodgeDistScale = minDim * distMultiplier
       return {
         tick,
         hitCount,
         radius: currentRadius(),
         triggerRadius: config.triggerRadiusFrac * minDim,
-        dodgeDistMin: config.dodgeMinDistFrac * minDim * distMultiplier,
-        dodgeDistMax: config.dodgeMaxDistFrac * minDim * distMultiplier,
+        dodgeDistMin: config.dodgeMinDistFrac * dodgeDistScale,
+        dodgeDistMax: config.dodgeMaxDistFrac * dodgeDistScale,
         dodgeDistMultiplier: distMultiplier,
       }
     },
