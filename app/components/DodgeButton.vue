@@ -2,38 +2,44 @@
   const props = defineProps<{
     x: number
     y: number
-    /** Ids of the hit-ring ripples currently animating (see
+    /**
+     * Ids of the hit-ring ripples currently animating (see
      *  useDodgingButton.ts) — rendered as one overlay per id so a hit in the
      *  second half of an existing ripple can overlap it instead of
-     *  restarting it. */
+     * restarting it.
+     */
     ripples: number[]
     bounds: { width: number; height: number }
-    /** Current hit-radius from the engine (shrinks with each click, see
+    /**
+     * Current hit-radius from the engine (shrinks with each click, see
      *  shared/evasionEngine.ts) — drives both the windowing math below and
-     *  the rendered size, so what's drawn always matches what's clickable. */
+     * the rendered size, so what's drawn always matches what's clickable.
+     */
     radius: number
   }>()
   defineEmits<{ pointerdown: [e: PointerEvent] }>()
 
   const pulseDelay = usePulseSync()
 
-  // The play field wraps (see shared/evasionEngine.ts), and x/y are kept
-  // continuous with the button's on-screen trajectory rather than snapped to
-  // the engine's internally-wrapped position — otherwise a dodge through one
-  // edge would jump to some unrelated point instead of sliding off-screen.
-  // That means x/y can drift arbitrarily far from the visible [0, bounds)
-  // range over a round (e.g. repeatedly cornering it against the same edge
-  // wraps it further each time), so the grid of rendered copies is centered
-  // on however far it's *currently* drifted (k0x/k0y below), not a fixed
-  // window around 0 — otherwise the on-screen copy can end up outside the
-  // window and the button vanishes entirely.
-  //
-  // Keying each copy by its actual offset (not array index) is what makes
-  // this safe: when the window shifts by one step, the two cells that
-  // stay in range keep their DOM identity and keep transitioning smoothly
-  // off/into view, while the cell that falls out of range unmounts (it was
-  // off-screen already) and any newly-in-range cell mounts fresh (also
-  // off-screen at first, so appearing without a transition is unnoticeable).
+  /**
+   * The play field wraps (see shared/evasionEngine.ts), and x/y are kept
+   * continuous with the button's on-screen trajectory rather than snapped to
+   * the engine's internally-wrapped position — otherwise a dodge through one
+   * edge would jump to some unrelated point instead of sliding off-screen.
+   * That means x/y can drift arbitrarily far from the visible [0, bounds)
+   * range over a round (e.g. repeatedly cornering it against the same edge
+   * wraps it further each time), so the grid of rendered copies is centered
+   * on however far it's *currently* drifted (k0x/k0y below), not a fixed
+   * window around 0 — otherwise the on-screen copy can end up outside the
+   * window and the button vanishes entirely.
+   *
+   * Keying each copy by its actual offset (not array index) is what makes
+   * this safe: when the window shifts by one step, the two cells that
+   * stay in range keep their DOM identity and keep transitioning smoothly
+   * off/into view, while the cell that falls out of range unmounts (it was
+   * off-screen already) and any newly-in-range cell mounts fresh (also
+   * off-screen at first, so appearing without a transition is unnoticeable).
+   */
   function centerStep(pos: number, size: number): number {
     const canonical = ((pos % size) + size) % size
     return Math.round((canonical - pos) / size)

@@ -21,9 +21,11 @@ interface ClaimResponse {
   rank: number
 }
 
-// Owns the round state machine (idle -> starting -> playing -> ended) and is
-// the only place that talks to /api/round/*; useDodgingButton stays free of
-// network concerns so the animation loop never waits on it.
+/**
+ * Owns the round state machine (idle -> starting -> playing -> ended) and is
+ * the only place that talks to /api/round/*; useDodgingButton stays free of
+ * network concerns so the animation loop never waits on it.
+ */
 export function useGameRound() {
   const dodge = useDodgingButton()
 

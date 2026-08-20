@@ -1,10 +1,12 @@
 import { vi } from 'vitest'
 import { ref } from 'vue'
 
-// app/composables/*.ts rely on Nuxt's auto-imported Vue/browser globals
-// (ref, onUnmounted, window, ...) instead of explicit imports. Outside the
-// Nuxt build these names don't exist, so tests that exercise those files
-// stub the minimal surface actually used.
+/**
+ * app/composables/*.ts rely on Nuxt's auto-imported Vue/browser globals
+ * (ref, onUnmounted, window, ...) instead of explicit imports. Outside the
+ * Nuxt build these names don't exist, so tests that exercise those files
+ * stub the minimal surface actually used.
+ */
 
 /** ref works standalone with no component instance; onUnmounted needs one, so it's a no-op here — tests call stop() themselves instead of relying on unmount. */
 export function stubVueLifecycle() {

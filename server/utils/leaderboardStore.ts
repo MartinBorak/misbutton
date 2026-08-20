@@ -1,6 +1,8 @@
-// Read-modify-write wrapper over Nitro's storage abstraction (useStorage) —
-// nothing here references a driver by name, so switching hosts later is a
-// config-only change in nuxt.config.ts.
+/**
+ * Read-modify-write wrapper over Nitro's storage abstraction (useStorage) —
+ * nothing here references a driver by name, so switching hosts later is a
+ * config-only change in nuxt.config.ts.
+ */
 
 import type { LeaderboardEntry } from '#shared/leaderboard'
 

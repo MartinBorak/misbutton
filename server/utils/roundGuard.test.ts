@@ -32,8 +32,10 @@ describe('round result tracking', () => {
   })
 
   it('markRoundClaimed on an unsubmitted round still records something sane', async () => {
-    // claim.post.ts guards against this in practice (it requires an existing
-    // result), but the util itself shouldn't produce garbage if called cold.
+    /**
+     * claim.post.ts guards against this in practice (it requires an existing
+     * result), but the util itself shouldn't produce garbage if called cold.
+     */
     await markRoundClaimed('never-submitted')
     const result = await getRoundResult('never-submitted')
     expect(result?.claimed).toBe(true)

@@ -95,8 +95,10 @@ describe('leaderboard storage', () => {
   })
 
   it('keeps entries beyond the top 3 up to the buffer size, dropping the rest', async () => {
-    // buffer size is 10; submit 12 distinct-score entries and confirm only
-    // the best 10 survive.
+    /**
+     * buffer size is 10; submit 12 distinct-score entries and confirm only
+     * the best 10 survive.
+     */
     for (let i = 0; i < 12; i++) {
       await submitEntry({ name: `p${i}`, clicks: i, achievedAt: i })
     }

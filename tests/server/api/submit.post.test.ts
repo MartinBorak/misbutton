@@ -2,17 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { fakeEvent, stubServerApiBasics, stubStorage } from '~~/tests/helpers/nuxtGlobals'
 
-// submit.post.ts's `export default defineEventHandler(...)` runs at import
-// time, so defineEventHandler must be stubbed before that import happens.
+/**
+ * submit.post.ts's `export default defineEventHandler(...)` runs at import
+ * time, so defineEventHandler must be stubbed before that import happens.
+ */
 stubServerApiBasics()
 
 const { issueRoundToken, verifyRoundToken } = await import('~~/server/utils/roundToken')
 const { getRoundResult, markRoundUsed } = await import('~~/server/utils/roundGuard')
 const { wouldQualify } = await import('~~/server/utils/leaderboardStore')
 
-// submit.post.ts calls these as bare globals too (Nitro server auto-imports
-// every export under server/utils/**), so they need the same treatment as
-// defineEventHandler/readBody/createError above.
+/**
+ * submit.post.ts calls these as bare globals too (Nitro server auto-imports
+ * every export under server/utils/**), so they need the same treatment as
+ * defineEventHandler/readBody/createError above.
+ */
 vi.stubGlobal('verifyRoundToken', verifyRoundToken)
 vi.stubGlobal('getRoundResult', getRoundResult)
 vi.stubGlobal('markRoundUsed', markRoundUsed)
@@ -152,10 +156,12 @@ describe('POST /api/round/submit — input validation', () => {
 })
 
 describe('POST /api/round/submit — movement plausibility', () => {
-  // Regression coverage for the false-positive rejection fixed this session:
-  // MAX_SPEED_PX_PER_SEC was 6,000 (300px/tick), tight enough that an
-  // ordinary fast flick while chasing the button could trip it. It's now
-  // 15,000 (750px/tick).
+  /**
+   * Regression coverage for the false-positive rejection fixed this session:
+   * MAX_SPEED_PX_PER_SEC was 6,000 (300px/tick), tight enough that an
+   * ordinary fast flick while chasing the button could trip it. It's now
+   * 15,000 (750px/tick).
+   */
   it('accepts a fast but realistic single-tick flick (700px, under the 750px/tick cap)', async () => {
     const { roundId, token } = await startRound()
     const samples = calmSamples()

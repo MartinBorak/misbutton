@@ -1,6 +1,8 @@
-// Tracks single-use round tokens and a per-IP rate limit on starting rounds.
-// Backed by the "rounds" storage mount (nuxt.config.ts) — same swappable
-// unstorage abstraction as the leaderboard.
+/**
+ * Tracks single-use round tokens and a per-IP rate limit on starting rounds.
+ * Backed by the "rounds" storage mount (nuxt.config.ts) — same swappable
+ * unstorage abstraction as the leaderboard.
+ */
 
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX = 8

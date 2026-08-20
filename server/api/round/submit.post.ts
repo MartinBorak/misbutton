@@ -84,9 +84,11 @@ export default defineEventHandler(async (event) => {
     hits,
     bounds: { width: payload.w, height: payload.h },
     seed: payload.seed,
-    // Must match useDodgingButton.ts's start() — the round now begins with
-    // the button at screen center (where the idle button rested) rather
-    // than a random seed-derived position.
+    /**
+     * Must match useDodgingButton.ts's start() — the round now begins with
+     * the button at screen center (where the idle button rested) rather
+     * than a random seed-derived position.
+     */
     initialCenter: { x: payload.w / 2, y: payload.h / 2 },
   })
 

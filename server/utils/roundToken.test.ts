@@ -56,10 +56,12 @@ describe('issueRoundToken / verifyRoundToken', () => {
   })
 
   it('rejects a token signed under a different secret', () => {
-    // This is exactly what happens if the server process restarts between a
-    // round starting and being submitted while using the random per-process
-    // fallback secret (see nuxt.config.ts) — the token from the old process
-    // must not verify against the new one.
+    /**
+     * This is exactly what happens if the server process restarts between a
+     * round starting and being submitted while using the random per-process
+     * fallback secret (see nuxt.config.ts) — the token from the old process
+     * must not verify against the new one.
+     */
     stubRuntimeConfig('secret-A')
     const { token } = issueRoundToken({ width: 800, height: 600 }, false)
 

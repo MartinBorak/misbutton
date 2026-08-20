@@ -57,15 +57,17 @@
     startRound()
   }
 
-  // No explicit "Play" click — the idle button sits at screen center (where
-  // a fresh round's engine also starts it, see useDodgingButton.ts) and the
-  // round starts once the cursor gets close enough, so the button's first
-  // reaction *is* the start of the round rather than a separate step before
-  // it. This first trigger fires wider than a mid-game dodge's, purely to
-  // buy time for the /api/round/start round-trip: it's the one moment
-  // startRound() is on the critical path between the cursor arriving and
-  // the button actually moving, so without the extra margin, network
-  // latency reads as the button freezing right as the cursor reaches it.
+  /**
+   * No explicit "Play" click — the idle button sits at screen center (where
+   * a fresh round's engine also starts it, see useDodgingButton.ts) and the
+   * round starts once the cursor gets close enough, so the button's first
+   * reaction *is* the start of the round rather than a separate step before
+   * it. This first trigger fires wider than a mid-game dodge's, purely to
+   * buy time for the /api/round/start round-trip: it's the one moment
+   * startRound() is on the critical path between the cursor arriving and
+   * the button actually moving, so without the extra margin, network
+   * latency reads as the button freezing right as the cursor reaches it.
+   */
   const IDLE_TRIGGER_RADIUS_MULTIPLIER = 2
   const idleButtonDiameter = ref(0)
   const idlePulseDelay = usePulseSync()

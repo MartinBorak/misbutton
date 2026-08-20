@@ -6,12 +6,14 @@ import { stubFetch, stubNavigator, stubVueLifecycle, stubWindow } from '~~/tests
 
 stubVueLifecycle()
 
-// useGameRound.ts calls the auto-imported useDodgingButton() itself — stub it
-// with a plain controllable fake rather than the real evasion engine, so
-// these tests exercise only useGameRound's own orchestration (phase
-// transitions, network calls, error handling), independently of the engine
-// (already covered by shared/evasionEngine.test.ts and
-// useDodgingButton.test.ts).
+/**
+ * useGameRound.ts calls the auto-imported useDodgingButton() itself — stub it
+ * with a plain controllable fake rather than the real evasion engine, so
+ * these tests exercise only useGameRound's own orchestration (phase
+ * transitions, network calls, error handling), independently of the engine
+ * (already covered by shared/evasionEngine.test.ts and
+ * useDodgingButton.test.ts).
+ */
 function createFakeDodge() {
   return {
     x: ref(0),

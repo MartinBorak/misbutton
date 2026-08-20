@@ -60,9 +60,11 @@ describe('createEvasionEngine', () => {
   const bounds = { width: 400, height: 300 }
 
   it('starts at a random position within bounds when no initialCenter is given', () => {
-    // Deterministic per seed (drawn from the same seeded rng as everything
-    // else) so the client and the server's replay agree on it without it
-    // needing to be transmitted — but not pinned to any fixed spot.
+    /**
+     * Deterministic per seed (drawn from the same seeded rng as everything
+     * else) so the client and the server's replay agree on it without it
+     * needing to be transmitted — but not pinned to any fixed spot.
+     */
     const a = createEvasionEngine({ seed: 1, bounds })
     const b = createEvasionEngine({ seed: 1, bounds })
     expect(a.getCenter()).toEqual(b.getCenter())
@@ -122,10 +124,12 @@ describe('createEvasionEngine', () => {
     const engine = createEvasionEngine({
       seed: 1,
       bounds,
-      // glideTicks: 1 makes each dodge land in a single step, so equality
-      // checks below distinguish "no new dodge fired" from "the previous
-      // dodge's glide is still smoothly in flight" (a separate concern,
-      // covered by the glide-specific tests further down).
+      /**
+       * glideTicks: 1 makes each dodge land in a single step, so equality
+       * checks below distinguish "no new dodge fired" from "the previous
+       * dodge's glide is still smoothly in flight" (a separate concern,
+       * covered by the glide-specific tests further down).
+       */
       config: { reactionDelayTicks: 0, cooldownTicks: 5, glideTicks: 1 },
     })
     const start = engine.getCenter()
@@ -142,13 +146,17 @@ describe('createEvasionEngine', () => {
   })
 
   it('moves by a distance within [dodgeMinDistFrac, dodgeMaxDistFrac] * min(bounds) on a dodge', () => {
-    // bounds is 400x300, so the 300 min dimension makes the expected
-    // absolute range [0.2, 0.3] * 300 = [60, 90].
+    /**
+     * bounds is 400x300, so the 300 min dimension makes the expected
+     * absolute range [0.2, 0.3] * 300 = [60, 90].
+     */
     const engine = createEvasionEngine({
       seed: 3,
       bounds,
-      // glideTicks: 1 so the single step() below completes the whole dodge
-      // at once, making its full distance measurable in one shot.
+      /**
+       * glideTicks: 1 so the single step() below completes the whole dodge
+       * at once, making its full distance measurable in one shot.
+       */
       config: {
         reactionDelayTicks: 0,
         cooldownTicks: 0,
@@ -166,18 +174,22 @@ describe('createEvasionEngine', () => {
   })
 
   it('moves getRawCenter() by the true dodge distance, unclamped, even past half the bounds', () => {
-    // getRawCenter() never wraps, so — unlike getCenter() — it isn't
-    // ambiguous about which way a big jump went: useDodgingButton.ts
-    // follows it directly for on-screen continuity instead of guessing a
-    // wrapped position's shortest path. There's therefore no need to cap
-    // dodge distance at half the bounds the way getCenter() effectively is.
-    // bounds is 400x300, so fractions of 4/8 give an absolute range of
-    // [1200, 2400] — comfortably past half of either bounds dimension.
+    /**
+     * getRawCenter() never wraps, so — unlike getCenter() — it isn't
+     * ambiguous about which way a big jump went: useDodgingButton.ts
+     * follows it directly for on-screen continuity instead of guessing a
+     * wrapped position's shortest path. There's therefore no need to cap
+     * dodge distance at half the bounds the way getCenter() effectively is.
+     * bounds is 400x300, so fractions of 4/8 give an absolute range of
+     * [1200, 2400] — comfortably past half of either bounds dimension.
+     */
     const engine = createEvasionEngine({
       seed: 3,
       bounds,
-      // glideTicks: 1 so each step()'s dodge completes at once, keeping the
-      // per-step distance measurable.
+      /**
+       * glideTicks: 1 so each step()'s dodge completes at once, keeping the
+       * per-step distance measurable.
+       */
       config: {
         reactionDelayTicks: 0,
         cooldownTicks: 0,
@@ -209,9 +221,11 @@ describe('createEvasionEngine', () => {
   })
 
   it('triggers evasion via proximity across the wrap seam, not just raw straight-line distance', () => {
-    // Button sits right at the edge; a cursor just past the *other* edge is
-    // actually adjacent to it through the wrap, even though the raw
-    // straight-line distance across the field is huge.
+    /**
+     * Button sits right at the edge; a cursor just past the *other* edge is
+     * actually adjacent to it through the wrap, even though the raw
+     * straight-line distance across the field is huge.
+     */
     const engine = createEvasionEngine({
       seed: 1,
       bounds,
@@ -224,16 +238,20 @@ describe('createEvasionEngine', () => {
   })
 
   describe('glide', () => {
-    // A dodge is simulated as a curved glide spread across glideTicks ticks
-    // (see startGlide/advanceGlide) rather than an instant jump, and
-    // hit-testing/evasion both read the position as it glides — so what a
-    // player can click or get close to is always exactly what's rendered,
-    // instead of a position that's already teleported ahead of the visual.
+    /**
+     * A dodge is simulated as a curved glide spread across glideTicks ticks
+     * (see startGlide/advanceGlide) rather than an instant jump, and
+     * hit-testing/evasion both read the position as it glides — so what a
+     * player can click or get close to is always exactly what's rendered,
+     * instead of a position that's already teleported ahead of the visual.
+     */
 
-    // Cursor placed at the exact antipode of wherever the button currently
-    // is — the maximum possible wrapped distance — so it's always well
-    // outside any reasonable trigger radius and never causes a proximity
-    // dodge, regardless of where the button has moved to.
+    /**
+     * Cursor placed at the exact antipode of wherever the button currently
+     * is — the maximum possible wrapped distance — so it's always well
+     * outside any reasonable trigger radius and never causes a proximity
+     * dodge, regardless of where the button has moved to.
+     */
     function stepAway(engine: ReturnType<typeof createEvasionEngine>) {
       const c = engine.getCenter()
       engine.step({ x: c.x + bounds.width / 2, y: c.y + bounds.height / 2 })
@@ -277,8 +295,10 @@ describe('createEvasionEngine', () => {
       }
       const after = engine.getRawCenter()
 
-      // Perpendicular distance from `mid` to the straight line between
-      // `before` and `after` — a straight-line glide would put this near 0.
+      /**
+       * Perpendicular distance from `mid` to the straight line between
+       * `before` and `after` — a straight-line glide would put this near 0.
+       */
       const abx = after.x - before.x
       const aby = after.y - before.y
       const lineLen = Math.hypot(abx, aby)
@@ -289,17 +309,21 @@ describe('createEvasionEngine', () => {
     })
 
     it('hit-tests against the position as it currently is mid-glide, not the eventual settled target', () => {
-      // Regression coverage for the actual bug this fixed: hit-testing used
-      // to read a position that jumped to the dodge target instantly, while
-      // only the client's cosmetic animation took the full glide duration
-      // to catch up — so a click on the button exactly where it was
-      // rendered could miss, and the button couldn't be "reached" again
-      // until the animation had visually caught up to its already-decided
-      // true position.
+      /**
+       * Regression coverage for the actual bug this fixed: hit-testing used
+       * to read a position that jumped to the dodge target instantly, while
+       * only the client's cosmetic animation took the full glide duration
+       * to catch up — so a click on the button exactly where it was
+       * rendered could miss, and the button couldn't be "reached" again
+       * until the animation had visually caught up to its already-decided
+       * true position.
+       */
       const config = { reactionDelayTicks: 0, cooldownTicks: 0, buttonRadiusFrac: 0.12 }
       const engine = createEvasionEngine({ seed: 1, bounds, config: { ...config, glideTicks: 30 } })
-      // Same seed and trigger, but settles in a single tick — stands in for
-      // "the eventual target" without reaching into engine internals.
+      /**
+       * Same seed and trigger, but settles in a single tick — stands in for
+       * "the eventual target" without reaching into engine internals.
+       */
       const settledMirror = createEvasionEngine({
         seed: 1,
         bounds,
@@ -329,8 +353,10 @@ describe('createEvasionEngine', () => {
       const p2 = engine.getRawCenter()
       const dir1 = { x: p2.x - p1.x, y: p2.y - p1.y } // heading while dodge #1 continues undisturbed
 
-      // Put the cursor right on the button's current (mid-flight) position
-      // — only 3 of 30 glide ticks into dodge #1 — to fire a second dodge.
+      /**
+       * Put the cursor right on the button's current (mid-flight) position
+       * — only 3 of 30 glide ticks into dodge #1 — to fire a second dodge.
+       */
       const mid = engine.getCenter()
       engine.step({ x: mid.x, y: mid.y })
       stepAway(engine)
@@ -339,8 +365,10 @@ describe('createEvasionEngine', () => {
       const q2 = engine.getRawCenter()
       const dir2 = { x: q2.x - q1.x, y: q2.y - q1.y } // heading after the redirect
 
-      // A genuine redirect changes heading; merely continuing dodge #1
-      // wouldn't (its direction only eases toward the same fixed target).
+      /**
+       * A genuine redirect changes heading; merely continuing dodge #1
+       * wouldn't (its direction only eases toward the same fixed target).
+       */
       const cos =
         (dir1.x * dir2.x + dir1.y * dir2.y) /
         (Math.hypot(dir1.x, dir1.y) * Math.hypot(dir2.x, dir2.y))
@@ -365,12 +393,14 @@ describe('createEvasionEngine', () => {
     })
 
     it('still hits within HIT_TOLERANCE_PX just past the exact radius', () => {
-      // The client (browser V8) and server (Node V8) each run this same
-      // trig-heavy math independently; JS doesn't guarantee Math.atan2/sin/
-      // cos/pow are bit-identical across engines, so a click the client
-      // scored as a hit can end up a hair outside the server's replayed
-      // radius. This tolerance absorbs that instead of the hit silently
-      // failing replay (see HIT_TOLERANCE_PX).
+      /**
+       * The client (browser V8) and server (Node V8) each run this same
+       * trig-heavy math independently; JS doesn't guarantee Math.atan2/sin/
+       * cos/pow are bit-identical across engines, so a click the client
+       * scored as a hit can end up a hair outside the server's replayed
+       * radius. This tolerance absorbs that instead of the hit silently
+       * failing replay (see HIT_TOLERANCE_PX).
+       */
       const engine = createEvasionEngine({ seed: 1, bounds, config: { buttonRadiusFrac: 0.12 } })
       const c = engine.getCenter()
       const radius = engine.getRadius()
@@ -391,8 +421,10 @@ describe('createEvasionEngine', () => {
         initialCenter: { x: 397, y: 150 },
         config: { buttonRadiusFrac: 0.12 },
       })
-      // Straight-line distance from (3, 150) to (397, 150) is 394px — way
-      // outside any reasonable radius — but the wrapped distance is 6px.
+      /**
+       * Straight-line distance from (3, 150) to (397, 150) is 394px — way
+       * outside any reasonable radius — but the wrapped distance is 6px.
+       */
       expect(engine.testHit(3, 150)).toBe(true)
     })
 
@@ -449,21 +481,27 @@ describe('createEvasionEngine', () => {
         const c = engine.getCenter()
         engine.testHit(c.x, c.y)
       }
-      // Radius is now 36 * 0.5^6 ≈ 0.56, floored at 1 (plus HIT_TOLERANCE_PX
-      // of slack) — a click comfortably beyond even that would have landed
-      // at the original 36px radius, but not at this one.
+      /**
+       * Radius is now 36 * 0.5^6 ≈ 0.56, floored at 1 (plus HIT_TOLERANCE_PX
+       * of slack) — a click comfortably beyond even that would have landed
+       * at the original 36px radius, but not at this one.
+       */
       const c = engine.getCenter()
       expect(engine.testHit(c.x + 1 + HIT_TOLERANCE_PX + 5, c.y)).toBe(false)
     })
 
     it('grows dodge distance by dodgeDistGrowthPerHit on every hit', () => {
-      // dodgeMinDistFrac === dodgeMaxDistFrac pins distance to a single
-      // deterministic value per hit, so only the growth multiplier varies.
+      /**
+       * dodgeMinDistFrac === dodgeMaxDistFrac pins distance to a single
+       * deterministic value per hit, so only the growth multiplier varies.
+       */
       const engine = createEvasionEngine({
         seed: 3,
         bounds,
-        // glideTicks: 1 so each testHit's dodge completes at once, keeping
-        // the per-hit distance measurable.
+        /**
+         * glideTicks: 1 so each testHit's dodge completes at once, keeping
+         * the per-hit distance measurable.
+         */
         config: {
           reactionDelayTicks: 0,
           cooldownTicks: 0,
@@ -492,8 +530,10 @@ describe('createEvasionEngine', () => {
       const engine = createEvasionEngine({
         seed: 3,
         bounds,
-        // glideTicks: 1 so each testHit's dodge completes at once, keeping
-        // the per-hit distance measurable.
+        /**
+         * glideTicks: 1 so each testHit's dodge completes at once, keeping
+         * the per-hit distance measurable.
+         */
         config: {
           reactionDelayTicks: 0,
           cooldownTicks: 0,
@@ -507,8 +547,10 @@ describe('createEvasionEngine', () => {
       for (let i = 0; i < 10; i++) {
         engine.testHit(engine.getCenter().x, engine.getCenter().y)
       }
-      // growth^10 is far past the cap of 4, so this hit's dodge should use
-      // the capped multiplier: 0.2 * min(bounds) * 4 = 240.
+      /**
+       * growth^10 is far past the cap of 4, so this hit's dodge should use
+       * the capped multiplier: 0.2 * min(bounds) * 4 = 240.
+       */
       const before = engine.getRawCenter()
       engine.testHit(engine.getCenter().x, engine.getCenter().y)
       const after = engine.getRawCenter()
@@ -584,10 +626,12 @@ describe('simulateRound', () => {
   })
 
   it('resolves hits in tick order regardless of input array order', () => {
-    // hitResults is indexed by each hit's position in the *input* array, so
-    // shuffling the input legitimately shuffles which slot holds which
-    // result — what must stay invariant is the outcome *per hit event* and
-    // the resulting button position, not the raw array order.
+    /**
+     * hitResults is indexed by each hit's position in the *input* array, so
+     * shuffling the input legitimately shuffles which slot holds which
+     * result — what must stay invariant is the outcome *per hit event* and
+     * the resulting button position, not the raw array order.
+     */
     const samples: Vec2[] = Array.from({ length: 5 }, () => ({ x: 0, y: 0 }))
     const hitA = { tick: 0, x: 200, y: 150 }
     const hitB = { tick: 2, x: 0, y: 0 }

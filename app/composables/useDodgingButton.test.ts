@@ -22,10 +22,12 @@ function firePointerMove(x: number, y: number) {
   fakeWindow.dispatch('pointermove', { clientX: x, clientY: y })
 }
 
-// Fakes setTimeout/setInterval only — leaves requestAnimationFrame alone so
-// the synchronous stub from stubRequestAnimationFrame() keeps working
-// (vi.useFakeTimers() fakes rAF too by default, which would otherwise
-// silently override it).
+/**
+ * Fakes setTimeout/setInterval only — leaves requestAnimationFrame alone so
+ * the synchronous stub from stubRequestAnimationFrame() keeps working
+ * (vi.useFakeTimers() fakes rAF too by default, which would otherwise
+ * silently override it).
+ */
 function useTickTimers() {
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
 }
@@ -40,8 +42,10 @@ afterEach(() => {
 
 describe('useDodgingButton', () => {
   it('starts at the center of the given bounds', () => {
-    // Matches the idle button's resting position (index.vue) so the round's
-    // first dodge is a continuous reaction rather than a teleport.
+    /**
+     * Matches the idle button's resting position (index.vue) so the round's
+     * first dodge is a continuous reaction rather than a teleport.
+     */
     const dodge = useDodgingButton()
     dodge.start(1, BOUNDS)
     expect(dodge.x.value).toBe(BOUNDS.width / 2)
@@ -94,9 +98,11 @@ describe('useDodgingButton', () => {
   })
 
   it('tracks the engine position exactly, tick by tick', () => {
-    // The glide itself now lives in shared/evasionEngine.ts (curve coverage
-    // is in evasionEngine.test.ts) — the composable's only job is to mirror
-    // it, so what's rendered is always exactly what hit-testing/evasion see.
+    /**
+     * The glide itself now lives in shared/evasionEngine.ts (curve coverage
+     * is in evasionEngine.test.ts) — the composable's only job is to mirror
+     * it, so what's rendered is always exactly what hit-testing/evasion see.
+     */
     useTickTimers()
     const dodge = useDodgingButton()
     dodge.start(1, BOUNDS)
@@ -170,20 +176,24 @@ describe('useDodgingButton', () => {
   })
 
   it('suppresses a hit ripple triggered in the first half of the previous one, but allows one after the halfway point', () => {
-    // Regression coverage for the debounce added this session: a hit
-    // landing early just restarted the ring back to scale 1, so rapid hits
-    // made it look like nothing was happening. Now an early hit is dropped
-    // (the existing ripple keeps playing undisturbed) while a hit past the
-    // halfway point starts a second ripple that plays alongside the first.
+    /**
+     * Regression coverage for the debounce added this session: a hit
+     * landing early just restarted the ring back to scale 1, so rapid hits
+     * made it look like nothing was happening. Now an early hit is dropped
+     * (the existing ripple keeps playing undisturbed) while a hit past the
+     * halfway point starts a second ripple that plays alongside the first.
+     */
     useTickTimers()
     const dodge = useDodgingButton()
     dodge.start(1, BOUNDS)
 
-    // A shadow engine driven through the exact same sequence of hits/ticks
-    // as the real one (same seed/bounds, same cursor every step) — since
-    // that makes it deterministically identical, its position tells us
-    // exactly where the next click needs to land, without
-    // useDodgingButton having to expose its internal engine.
+    /**
+     * A shadow engine driven through the exact same sequence of hits/ticks
+     * as the real one (same seed/bounds, same cursor every step) — since
+     * that makes it deterministically identical, its position tells us
+     * exactly where the next click needs to land, without
+     * useDodgingButton having to expose its internal engine.
+     */
     const mirror = createEvasionEngine({
       seed: 1,
       bounds: BOUNDS,
@@ -243,16 +253,18 @@ describe('useDodgingButton', () => {
   })
 
   it('keeps the displayed position sliding in the pushed direction across a wrap, never snapping', () => {
-    // Regression coverage for the bug fixed this session: the shared engine
-    // wraps its internal center into [0, bounds), but the *displayed*
-    // x/y (what setDisplayPosition maintains) must stay continuous with
-    // the button's on-screen trajectory — otherwise a dodge through one
-    // edge visibly jumps to an unrelated point instead of sliding
-    // off-screen. Chasing it relentlessly from below (pushing it toward
-    // the top) for long enough should eventually provoke a wrap; a
-    // continuous display necessarily goes negative when that happens,
-    // which a naive "snap to the engine's wrapped value" implementation
-    // (always in [0, height)) never would.
+    /**
+     * Regression coverage for the bug fixed this session: the shared engine
+     * wraps its internal center into [0, bounds), but the *displayed*
+     * x/y (what setDisplayPosition maintains) must stay continuous with
+     * the button's on-screen trajectory — otherwise a dodge through one
+     * edge visibly jumps to an unrelated point instead of sliding
+     * off-screen. Chasing it relentlessly from below (pushing it toward
+     * the top) for long enough should eventually provoke a wrap; a
+     * continuous display necessarily goes negative when that happens,
+     * which a naive "snap to the engine's wrapped value" implementation
+     * (always in [0, height)) never would.
+     */
     useTickTimers()
     const dodge = useDodgingButton()
     dodge.start(7, BOUNDS)

@@ -12,21 +12,27 @@ export interface DodgeLog {
   hits: { tick: number; x: number; y: number }[]
 }
 
-// Drives both the ripple's lifetime here and the hit-ring animation's
-// duration in main.css (set as a CSS custom property, see DodgeButton.vue) —
-// one source of truth instead of two numbers that have to be kept in sync by hand.
+/**
+ * Drives both the ripple's lifetime here and the hit-ring animation's
+ * duration in main.css (set as a CSS custom property, see DodgeButton.vue) —
+ * one source of truth instead of two numbers that have to be kept in sync by hand.
+ */
 export const RIPPLE_DURATION_MS = 1500
 const RIPPLE_TICKS = Math.round(RIPPLE_DURATION_MS / TICK_MS)
 
-// Drives shared/evasionEngine.ts on a fixed real-time tick and owns everything
-// needed to both render the button and reconstruct the round for server replay.
+/**
+ * Drives shared/evasionEngine.ts on a fixed real-time tick and owns everything
+ * needed to both render the button and reconstruct the round for server replay.
+ */
 export function useDodgingButton() {
   const x = ref(0)
   const y = ref(0)
-  // Ids of the hit-ring ripples currently animating — a list rather than a
-  // single flag because a hit landing in the second half of the previous
-  // ripple starts a new one that plays alongside it instead of cutting it
-  // off; see triggerHitEffect.
+  /**
+   * Ids of the hit-ring ripples currently animating — a list rather than a
+   * single flag because a hit landing in the second half of the previous
+   * ripple starts a new one that plays alongside it instead of cutting it
+   * off; see triggerHitEffect.
+   */
   const ripples = ref<number[]>([])
   const clicks = ref(0)
   const bounds = ref<Bounds>({ width: 0, height: 0 })
@@ -46,11 +52,13 @@ export function useDodgingButton() {
     cursor = { x: e.clientX, y: e.clientY }
   }
 
-  // The dodge's curved glide is now simulated inside the shared engine
-  // itself (see shared/evasionEngine.ts) rather than being a client-only
-  // visual layered on top of an instantly-teleporting position — so what's
-  // rendered here is always exactly the same position hit-testing and
-  // evasion are reacting to, tick for tick.
+  /**
+   * The dodge's curved glide is now simulated inside the shared engine
+   * itself (see shared/evasionEngine.ts) rather than being a client-only
+   * visual layered on top of an instantly-teleporting position — so what's
+   * rendered here is always exactly the same position hit-testing and
+   * evasion are reacting to, tick for tick.
+   */
   function syncFromEngine() {
     if (!engine) {
       return
@@ -73,11 +81,13 @@ export function useDodgingButton() {
     syncFromEngine()
   }
 
-  // A hit landing while the most recent ripple is still in its first half
-  // is dropped rather than restarting it — otherwise rapid hits kept
-  // resetting the ring back to scale 1 and it never visibly grew. Past the
-  // halfway point, a fresh ripple starts and plays on top of the old one
-  // instead of cutting it off.
+  /**
+   * A hit landing while the most recent ripple is still in its first half
+   * is dropped rather than restarting it — otherwise rapid hits kept
+   * resetting the ring back to scale 1 and it never visibly grew. Past the
+   * halfway point, a fresh ripple starts and plays on top of the old one
+   * instead of cutting it off.
+   */
   function triggerHitEffect(tickIndex: number) {
     if (lastRippleTick !== null && tickIndex - lastRippleTick < RIPPLE_TICKS / 2) {
       return
@@ -117,10 +127,12 @@ export function useDodgingButton() {
     clicks.value = 0
     bounds.value = roundBounds
     cursor = { x: roundBounds.width / 2, y: roundBounds.height / 2 }
-    // Screen center, matching the idle button's resting position (index.vue)
-    // so the round's first dodge is a continuous reaction rather than a
-    // teleport — must stay identical to submit.post.ts's replay, which has
-    // no other way to know where the round visually began.
+    /**
+     * Screen center, matching the idle button's resting position (index.vue)
+     * so the round's first dodge is a continuous reaction rather than a
+     * teleport — must stay identical to submit.post.ts's replay, which has
+     * no other way to know where the round visually began.
+     */
     engine = createEvasionEngine({
       seed,
       bounds: roundBounds,

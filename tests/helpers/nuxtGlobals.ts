@@ -2,9 +2,11 @@ import { vi } from 'vitest'
 
 // server/utils/*.ts and server/api/**/*.ts rely on Nitro's auto-imported
 // globals (useRuntimeConfig, useStorage, defineEventHandler, readBody,
-// createError, ...) instead of explicit imports. Outside the Nitro build
-// these names don't exist, so tests that exercise those files stub the
-// minimal surface actually used, in-process, with no real storage I/O.
+/**
+ * createError, ...) instead of explicit imports. Outside the Nitro build
+ * these names don't exist, so tests that exercise those files stub the
+ * minimal surface actually used, in-process, with no real storage I/O.
+ */
 
 export interface MemoryStorage {
   getItem<T>(key: string): Promise<T | null>

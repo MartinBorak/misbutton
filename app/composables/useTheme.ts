@@ -5,15 +5,19 @@ const ColorTheme = {
 
 type Theme = (typeof ColorTheme)[keyof typeof ColorTheme]
 
-// colorMode.value is typed as a plain string (the module allows custom
-// modes beyond dark/light), so map it down to the theme values this app uses.
+/**
+ * colorMode.value is typed as a plain string (the module allows custom
+ * modes beyond dark/light), so map it down to the theme values this app uses.
+ */
 const THEME_BY_COLOR_MODE: Record<string, Theme> = {
   [ColorTheme.LIGHT]: ColorTheme.LIGHT,
   [ColorTheme.DARK]: ColorTheme.DARK,
 }
 
-// The pre-paint decision (localStorage / prefers-color-scheme) and the
-// data-theme attribute are both handled by @nuxtjs/color-mode.
+/**
+ * The pre-paint decision (localStorage / prefers-color-scheme) and the
+ * data-theme attribute are both handled by @nuxtjs/color-mode.
+ */
 export function useTheme() {
   const colorMode = useColorMode()
 
