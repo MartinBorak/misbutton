@@ -5,8 +5,8 @@ import { fakeEvent, stubDefineEventHandler, stubStorage } from '~~/tests/helpers
 stubDefineEventHandler()
 stubStorage()
 
-const { getTop, submitEntry } = await import('~~/server/utils/leaderboardStore')
-vi.stubGlobal('getTop', getTop)
+const { getTopEntries, submitEntry } = await import('~~/server/utils/leaderboardStore')
+vi.stubGlobal('getTopEntries', getTopEntries)
 
 const handlerModule = await import('~~/server/api/leaderboard/top.get')
 const handler = handlerModule.default as (event: unknown) => Promise<{ entries: unknown[] }>

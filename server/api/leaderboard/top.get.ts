@@ -1,4 +1,4 @@
 export default defineEventHandler(async () => {
-  const entries = await getTop()
+  const entries = await getTopEntries()
   return { entries }
 })

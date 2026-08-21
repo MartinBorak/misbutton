@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { stubStorage } from '~~/tests/helpers/nuxtGlobals'
 
 stubStorage()
-const { getTop, sanitizeName, submitEntry, wouldQualify } = await import('./leaderboardStore')
+const { getTopEntries, sanitizeName, submitEntry, wouldQualify } =
+  await import('./leaderboardStore')
 
 describe('sanitizeName', () => {
   it('rejects non-string input', () => {
@@ -44,8 +45,8 @@ describe('leaderboard storage', () => {
     stubStorage() // fresh in-memory store per test
   })
 
-  it('getTop returns an empty array when nothing has been submitted', async () => {
-    expect(await getTop()).toEqual([])
+  it('getTopEntries returns an empty array when nothing has been submitted', async () => {
+    expect(await getTopEntries()).toEqual([])
   })
 
   it('wouldQualify says yes for any score while fewer than 3 entries exist', async () => {
@@ -54,13 +55,18 @@ describe('leaderboard storage', () => {
     expect(await wouldQualify(0)).toEqual({ qualifies: true, rank: 2 })
   })
 
+  it('wouldQualify ranks a score that beats an existing entry ahead of it, even while under 3 entries', async () => {
+    await submitEntry({ name: 'A', clicks: 10, achievedAt: 1 })
+    expect(await wouldQualify(20)).toEqual({ qualifies: true, rank: 1 })
+  })
+
   it('submitEntry sorts by clicks desc, achievedAt asc as a tiebreaker', async () => {
     await submitEntry({ name: 'Low', clicks: 5, achievedAt: 1 })
     await submitEntry({ name: 'High', clicks: 20, achievedAt: 2 })
     await submitEntry({ name: 'Mid', clicks: 10, achievedAt: 3 })
     await submitEntry({ name: 'TieEarlier', clicks: 10, achievedAt: 1 })
 
-    const top = await getTop(10)
+    const top = await getTopEntries(10)
     expect(top.map((e) => e.name)).toEqual(['High', 'TieEarlier', 'Mid', 'Low'])
   })
 
@@ -87,11 +93,11 @@ describe('leaderboard storage', () => {
     expect(missed).toEqual({ qualifies: false, rank: -1 })
   })
 
-  it('getTop respects the requested limit', async () => {
+  it('getTopEntries respects the requested limit', async () => {
     for (let i = 0; i < 5; i++) {
       await submitEntry({ name: `p${i}`, clicks: i, achievedAt: i })
     }
-    expect(await getTop(2)).toHaveLength(2)
+    expect(await getTopEntries(2)).toHaveLength(2)
   })
 
   it('keeps entries beyond the top 3 up to the buffer size, dropping the rest', async () => {
@@ -102,7 +108,7 @@ describe('leaderboard storage', () => {
     for (let i = 0; i < 12; i++) {
       await submitEntry({ name: `p${i}`, clicks: i, achievedAt: i })
     }
-    const top = await getTop(20)
+    const top = await getTopEntries(20)
     expect(top).toHaveLength(10)
     expect(top.map((e) => e.name)).toEqual([
       'p11',

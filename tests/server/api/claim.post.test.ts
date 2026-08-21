@@ -7,7 +7,8 @@ stubServerApiBasics()
 const { issueRoundToken, verifyRoundToken } = await import('~~/server/utils/roundToken')
 const { getRoundResult, markRoundClaimed, markRoundUsed } =
   await import('~~/server/utils/roundGuard')
-const { getTop, sanitizeName, submitEntry } = await import('~~/server/utils/leaderboardStore')
+const { getTopEntries, sanitizeName, submitEntry } =
+  await import('~~/server/utils/leaderboardStore')
 
 vi.stubGlobal('verifyRoundToken', verifyRoundToken)
 vi.stubGlobal('getRoundResult', getRoundResult)
@@ -82,7 +83,7 @@ describe('POST /api/round/claim', () => {
     }
     expect(result).toEqual({ qualifies: true, rank: 1 })
 
-    const top = await getTop()
+    const top = await getTopEntries()
     expect(top[0]).toMatchObject({ name: 'Martin', clicks: 25 })
 
     const stored = await getRoundResult(roundId)

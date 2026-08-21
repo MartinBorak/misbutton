@@ -16,24 +16,24 @@ function store() {
 }
 
 function sortEntries(entries: LeaderboardEntry[]): LeaderboardEntry[] {
-  return [...entries].sort((a, b) => b.clicks - a.clicks || a.achievedAt - b.achievedAt)
+  return entries.toSorted((a, b) => b.clicks - a.clicks || a.achievedAt - b.achievedAt)
 }
 
-export async function getTop(n = TOP_N): Promise<LeaderboardEntry[]> {
+export async function getTopEntries(n = TOP_N): Promise<LeaderboardEntry[]> {
   const entries = (await store().getItem<LeaderboardEntry[]>(KEY)) ?? []
   return sortEntries(entries).slice(0, n)
 }
 
 export async function wouldQualify(clicks: number): Promise<{ qualifies: boolean; rank: number }> {
-  const top = await getTop(TOP_N)
+  const top = await getTopEntries(TOP_N)
+  const beatIndex = top.findIndex((e) => clicks > e.clicks)
+  if (beatIndex !== -1) {
+    return { qualifies: true, rank: beatIndex + 1 }
+  }
   if (top.length < TOP_N) {
     return { qualifies: true, rank: top.length + 1 }
   }
-  const beatIndex = top.findIndex((e) => clicks > e.clicks)
-  if (beatIndex === -1) {
-    return { qualifies: false, rank: -1 }
-  }
-  return { qualifies: true, rank: beatIndex + 1 }
+  return { qualifies: false, rank: -1 }
 }
 
 /**
