@@ -6,7 +6,9 @@ interface StartBody {
   webdriver?: boolean
 }
 
+/** Floor for a reported viewport dimension — well below any real device, just guards against a 0/negative/absurd report. */
 const MIN_DIMENSION = 320
+/** Ceiling for a reported viewport dimension — well above any real display, just guards against a spoofed/absurd report. */
 const MAX_DIMENSION = 10000
 
 /** Clamps a reported viewport dimension into a sane range. */

@@ -11,6 +11,8 @@
  * Single source of truth for the shared idle-pulse animation's duration —
  * callers pass this to main.css via the --idle-pulse-duration custom
  * property instead of the CSS hardcoding a matching number independently.
+ * 2600ms is purely an aesthetic choice — slow enough to read as an idle
+ * "breathing" glow rather than a blinking alert.
  */
 export const IDLE_PULSE_PERIOD_MS = 2600
 

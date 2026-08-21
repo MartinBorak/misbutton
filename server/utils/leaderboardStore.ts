@@ -11,8 +11,11 @@ export interface QualificationResult {
   rank: number
 }
 
+/** Storage key for the persisted list; colon-namespaced like roundGuard.ts's keys, so future keys don't collide. */
 const KEY = 'leaderboard:top'
+/** Entries kept in storage — more than TOP_N, so a few runner-ups survive rather than being discarded outright. */
 const BUFFER_SIZE = 10
+/** How many entries actually count as "the leaderboard" — matches the "Top 3" shown in LeaderboardPanel.vue. */
 const TOP_N = 3
 
 /** The unstorage mount backing the leaderboard. */

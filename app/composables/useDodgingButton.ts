@@ -16,8 +16,11 @@ export interface DodgeLog {
  * Drives both the ripple's lifetime here and the hit-ring animation's
  * duration in main.css (set as a CSS custom property, see DodgeButton.vue) —
  * one source of truth instead of two numbers that have to be kept in sync by hand.
+ * 1500ms is purely an aesthetic choice, tuned so the ring has time to fully
+ * expand and fade without lingering into the next click.
  */
 export const RIPPLE_DURATION_MS = 1500
+/** RIPPLE_DURATION_MS expressed in ticks, for comparison against tick-indexed state in triggerHitEffect. */
 const RIPPLE_TICKS = Math.round(RIPPLE_DURATION_MS / TICK_MS)
 
 /**

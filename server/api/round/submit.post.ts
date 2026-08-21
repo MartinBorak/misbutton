@@ -1,8 +1,17 @@
 import { simulateRound, TICK_MS, type HitEvent, type Vec2 } from '#shared/evasionEngine'
 import { ROUND_MS } from '#shared/roundConfig'
 
-const ROUND_SLOP_MS = Math.min(5_000, Math.round(ROUND_MS * 0.5))
+/** Allowed drift between expected and actual round duration — generous enough to absorb normal network/timer jitter. */
+const ROUND_SLOP_MS = 5_000
+/** ROUND_SLOP_MS expressed in ticks (2s of it), for comparison against the tick-counted sample array below. */
 const TICK_SLOP = Math.round(2_000 / TICK_MS)
+/**
+ * Ceiling on cursor speed between two samples, in px/sec. Was 6,000, but
+ * that was tight enough that ordinary fast mouse flicks while chasing the
+ * button could exceed it and get flagged as implausible movement; raised to
+ * 15,000 — confirmed against both realistic fast movement (passes) and
+ * literal instant teleports (still rejected).
+ */
 const MAX_SPEED_PX_PER_SEC = 15_000
 const MAX_PLAUSIBLE_CLICKS = Math.floor((ROUND_MS / 1000) * 8) // generous headroom above realistic play
 

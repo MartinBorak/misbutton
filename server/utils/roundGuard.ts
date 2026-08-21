@@ -4,7 +4,9 @@
  * unstorage abstraction as the leaderboard.
  */
 
+/** Sliding window for the per-IP rate limit — 1 minute. Coincidentally equal to ROUND_MS, but unrelated to it. */
 const RATE_LIMIT_WINDOW_MS = 60_000
+/** Round starts allowed per IP per window — generous enough for legitimate replay attempts, low enough to blunt scripted abuse. */
 const RATE_LIMIT_MAX = 8
 
 /** The unstorage mount backing round usage/claim records and rate limits. */

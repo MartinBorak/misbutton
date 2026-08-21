@@ -94,6 +94,7 @@ export interface EngineConfig {
   curveFactor: number
 }
 
+/** Simulation step length — 20 ticks/sec, frequent enough for smooth-looking movement while keeping a round's recorded sample array small. */
 export const TICK_MS = 50
 
 /**
