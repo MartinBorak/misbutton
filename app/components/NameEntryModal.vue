@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import { MAX_NAME_LENGTH } from '#shared/validation'
+
   const props = defineProps<{ show: boolean; rank: number; clicks: number }>()
   const emit = defineEmits<{ submit: [name: string]; skip: [] }>()
 
@@ -36,7 +38,7 @@
         <input
           v-model="name"
           type="text"
-          maxlength="16"
+          :maxlength="MAX_NAME_LENGTH"
           placeholder="Your name"
           autofocus
           @keyup.enter="submit"

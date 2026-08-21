@@ -14,7 +14,6 @@ export interface QualificationResult {
 const KEY = 'leaderboard:top'
 const BUFFER_SIZE = 10
 const TOP_N = 3
-const MAX_NAME_LENGTH = 16
 
 function store() {
   return useStorage('leaderboard')
@@ -52,22 +51,4 @@ export async function submitEntry(entry: LeaderboardEntry): Promise<Qualificatio
   await store().setItem(KEY, updated)
   const rank = updated.slice(0, TOP_N).indexOf(entry)
   return { qualifies: rank !== -1, rank: rank === -1 ? -1 : rank + 1 }
-}
-
-function isControlCharCode(code: number): boolean {
-  return code < 32 || code === 127
-}
-
-export function sanitizeName(input: unknown): string | null {
-  if (typeof input !== 'string') {
-    return null
-  }
-  let visible = ''
-  for (const char of input) {
-    if (!isControlCharCode(char.codePointAt(0) || 0)) {
-      visible += char
-    }
-  }
-  const cleaned = visible.trim().slice(0, MAX_NAME_LENGTH)
-  return cleaned.length > 0 ? cleaned : null
 }

@@ -7,8 +7,8 @@ stubServerApiBasics()
 const { issueRoundToken, verifyRoundToken } = await import('~~/server/utils/roundToken')
 const { getRoundResult, markRoundClaimed, markRoundUsed } =
   await import('~~/server/utils/roundGuard')
-const { getTopEntries, sanitizeName, submitEntry } =
-  await import('~~/server/utils/leaderboardStore')
+const { getTopEntries, submitEntry } = await import('~~/server/utils/leaderboardStore')
+const { sanitizeName } = await import('~~/server/utils/validation')
 
 vi.stubGlobal('verifyRoundToken', verifyRoundToken)
 vi.stubGlobal('getRoundResult', getRoundResult)
