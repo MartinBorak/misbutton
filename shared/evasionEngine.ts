@@ -100,17 +100,18 @@ export const TICK_MS = 50
 /**
  * A few pixels of slack on top of the exact hit radius, purely to absorb
  * sub-pixel rendering/measurement noise (e.g. device pixel ratio rounding)
- * — NOT cross-engine math drift, which portableSin/Cos/Atan2 below
- * eliminate at the source instead.
+ * — NOT cross-engine math drift, which portableSinCos below eliminates at
+ * the source instead.
  */
 export const HIT_TOLERANCE_PX = 4
 
 /**
- * sin/cos/atan below are reimplemented from Taylor series using only +, -, *
- * (Math.sin/cos/atan2 aren't required to be bit-identical across JS engines,
- * but client and server must land on the exact same dodge math every tick).
+ * sin/cos below are reimplemented from Taylor series using only +, -, *
+ * (Math.sin/cos aren't required to be bit-identical across JS engines, but
+ * client and server must land on the exact same dodge math every tick).
  * evalPoly evaluates one such series via Horner's method from a coefficient
- * list, so each reimplementation is just its list.
+ * list, so each reimplementation is just its list. Everything else here
+ * sticks to +, -, *, / and Math.sqrt, which IEEE-754 does pin down exactly.
  */
 function evalPoly(u: number, coeffs: readonly number[]): number {
   return coeffs.reduce((p, c) => p * u + c, 0)
@@ -170,52 +171,16 @@ function portableSinCos(x: number): { sin: number; cos: number } {
   }
 }
 
-// atan(x) = x·(1 − x²/3 + x⁴/5 − x⁶/7 + x⁸/9 − x¹⁰/11 + x¹²/13)
-const ATAN_SMALL_COEFFS = [1 / 13, -1 / 11, 1 / 9, -1 / 7, 1 / 5, -1 / 3, 1]
-
-/**
- * Valid for |x| <= 0.01 (see portableAtan) — Taylor series converges to
- * within ~1e-15 there.
- */
-function portableAtanSmall(x: number): number {
-  return x * evalPoly(x * x, ATAN_SMALL_COEFFS)
+/** Rotates a vector by `angle` radians — the unit-vector equivalent of adding to an angle. */
+function rotate(v: Vec2, angle: number): Vec2 {
+  const { sin, cos } = portableSinCos(angle)
+  return { x: v.x * cos - v.y * sin, y: v.x * sin + v.y * cos }
 }
 
-/**
- * Recursively halves the *angle* via the tangent half-angle identity
- * (tan(θ/2) = tan(θ) / (1 + sec(θ))) until it's small enough for
- * portableAtanSmall's Taylor series to converge fast, then undoes the
- * halving on the way back out. Uses only +, -, *, / and Math.sqrt.
- */
-function halveUntilSmall(ax: number, halvings: number): number {
-  if (ax <= 0.01 || halvings >= 60) {
-    return portableAtanSmall(ax) * intPow(2, halvings)
-  }
-  return halveUntilSmall(ax / (1 + Math.sqrt(1 + ax * ax)), halvings + 1)
-}
-
-/** Portable replacement for Math.atan — angle in radians whose tangent is x. */
-function portableAtan(x: number): number {
-  const result = halveUntilSmall(x < 0 ? -x : x, 0)
-  return x < 0 ? -result : result
-}
-
-/** Portable replacement for Math.atan2 — angle in radians of the vector (x, y). */
-function portableAtan2(y: number, x: number): number {
-  if (x > 0) {
-    return portableAtan(y / x)
-  }
-  if (x < 0) {
-    const base = portableAtan(y / x)
-    return y >= 0 ? base + Math.PI : base - Math.PI
-  }
-  if (y > 0) {
-    return Math.PI / 2
-  }
-  if (y < 0) {
-    return -Math.PI / 2
-  }
-  return 0
+/** A unit vector pointing in a uniformly random direction. Consumes exactly one rng draw. */
+function randomUnitVec(rng: () => number): Vec2 {
+  const { sin, cos } = portableSinCos(rng() * Math.PI * 2)
+  return { x: cos, y: sin }
 }
 
 /**
@@ -314,7 +279,6 @@ function cubicBezierEase(x1: number, y1: number, x2: number, y2: number): (t: nu
     }
     let lo = 0
     let hi = 1
-    t = x
     while (hi - lo > 1e-6) {
       t = (lo + hi) / 2
       if (sampleX(t) < x) {
@@ -394,6 +358,37 @@ function wrappedVec(a: Vec2, b: Vec2, bounds: Bounds): Vec2 {
   }
 }
 
+/** Length of a vector. */
+function magnitude(v: Vec2): number {
+  return Math.sqrt(v.x * v.x + v.y * v.y)
+}
+
+/** Shortest distance from b to a across the wrapping field (see wrappedVec). */
+function wrappedDist(a: Vec2, b: Vec2, bounds: Bounds): number {
+  return magnitude(wrappedVec(a, b, bounds))
+}
+
+/**
+ * Below this length a vector has no meaningful direction, so normalizing it
+ * would blow up instead of pointing anywhere useful.
+ */
+const MIN_DIRECTION_MAGNITUDE = 1e-6
+
+/**
+ * Unit vector pointing the same way as v, or `fallback` when v is too short
+ * to have a direction at all. The fallback is a function, not a value,
+ * because one caller falls back to a random direction — computing that
+ * eagerly would consume an rng draw on the overwhelmingly common path where
+ * it isn't needed, desyncing the client's and server's rng streams.
+ */
+function normalize(v: Vec2, fallback: () => Vec2): Vec2 {
+  const mag = magnitude(v)
+  if (mag < MIN_DIRECTION_MAGNITUDE) {
+    return fallback()
+  }
+  return { x: v.x / mag, y: v.y / mag }
+}
+
 /**
  * The (x, y) offset of a dodge, before it's wrapped into the field. Distance
  * is intentionally uncapped: the caller applies this same offset to both the
@@ -410,9 +405,13 @@ function dodgeOffset(
   config: EngineConfig,
   distMultiplier: number,
 ): Vec2 {
-  const { x: dx, y: dy } = wrappedVec(center, awayFrom, bounds)
-  const mag = Math.sqrt(dx * dx + dy * dy)
-  const fleeAngle = mag < 1e-6 ? rng() * Math.PI * 2 : portableAtan2(dy, dx)
+  /**
+   * Directions are carried as unit vectors rather than angles: the flee
+   * direction is just the normalized away-vector, so there's no need to
+   * convert to an angle and straight back again (cos(atan2(dy, dx)) is
+   * dx/mag by definition). Only the random cone below actually needs trig.
+   */
+  const flee = normalize(wrappedVec(center, awayFrom, bounds), () => randomUnitVec(rng))
 
   /**
    * Blend the flee direction with a small pull toward the field center
@@ -423,25 +422,19 @@ function dodgeOffset(
    * shortest one — no wrap-aware math needed here.
    */
   const toCenter = { x: bounds.width / 2 - center.x, y: bounds.height / 2 - center.y }
-  const toCenterMag = Math.sqrt(toCenter.x * toCenter.x + toCenter.y * toCenter.y)
-  const fleeSinCos = portableSinCos(fleeAngle)
-  const flee = { x: fleeSinCos.cos, y: fleeSinCos.sin }
-  const pull =
-    toCenterMag < 1e-6 ? flee : { x: toCenter.x / toCenterMag, y: toCenter.y / toCenterMag }
+  const pull = normalize(toCenter, () => flee)
   const fleeWeight = 1 - config.centerPullWeight
   const blended = {
     x: flee.x * fleeWeight + pull.x * config.centerPullWeight,
     y: flee.y * fleeWeight + pull.y * config.centerPullWeight,
   }
-  const blendedMag = Math.sqrt(blended.x * blended.x + blended.y * blended.y)
-  const baseAngle = blendedMag < 1e-6 ? fleeAngle : portableAtan2(blended.y, blended.x)
+  const base = normalize(blended, () => flee)
 
-  const angle = baseAngle + (rng() * 2 - 1) * config.coneHalfAngleRad
+  const direction = rotate(base, (rng() * 2 - 1) * config.coneHalfAngleRad)
   const distFrac =
     config.dodgeMinDistFrac + rng() * (config.dodgeMaxDistFrac - config.dodgeMinDistFrac)
   const dist = distFrac * Math.min(bounds.width, bounds.height) * distMultiplier
-  const angleSinCos = portableSinCos(angle)
-  return { x: angleSinCos.cos * dist, y: angleSinCos.sin * dist }
+  return { x: direction.x * dist, y: direction.y * dist }
 }
 
 export interface EvasionEngine {
@@ -519,14 +512,15 @@ export function createEvasionEngine(opts: {
    */
   function startGlide(awayFrom: Vec2) {
     const offset = dodgeOffset(center, awayFrom, rng, opts.bounds, config, currentDistMultiplier())
-    const dist = Math.sqrt(offset.x * offset.x + offset.y * offset.y)
+    const dist = magnitude(offset)
     /**
      * Perpendicular to the straight line, so the curve bulges to one side
      * instead of overshooting past the target. Drawn from the same seeded
      * rng as the rest of the dodge — this bulge is part of the actual
      * simulated path now, not just cosmetic, so it has to be deterministic.
      */
-    const perp = dist < 1e-6 ? { x: 0, y: 0 } : { x: -offset.y / dist, y: offset.x / dist }
+    const perp =
+      dist < MIN_DIRECTION_MAGNITUDE ? { x: 0, y: 0 } : { x: -offset.y / dist, y: offset.x / dist }
     const bulge = (rng() * 2 - 1) * dist * config.curveFactor
     glideStart = rawCenter
     glideTarget = { x: rawCenter.x + offset.x, y: rawCenter.y + offset.y }
@@ -551,30 +545,33 @@ export function createEvasionEngine(opts: {
     center = wrapToBounds(rawCenter, opts.bounds)
   }
 
-  /** Triggers a dodge away from awayFrom, taking its first glide step immediately. */
+  /**
+   * Triggers a dodge away from awayFrom, taking its first glide step
+   * immediately, and restarts the cooldown/reaction timers — every dodge
+   * has to do both, so they live together rather than at each call site.
+   */
   function dodge(awayFrom: Vec2) {
     startGlide(awayFrom)
     advanceGlide() // same-tick first step, so a dodge is visible immediately
+    lastDodgeTick = tick
+    pendingReadyAtTick = null
   }
 
   const minDim = Math.min(opts.bounds.width, opts.bounds.height)
+  const baseRadius = initialButtonRadius(opts.bounds, config)
+  const minRadius = config.minButtonRadiusFrac * minDim
+  const triggerRadius = initialTriggerRadius(opts.bounds, config)
 
   /** Current button radius, shrunk by past hits and floored at minButtonRadiusFrac. */
   function currentRadius(): number {
-    const baseRadius = config.buttonRadiusFrac * minDim
-    return Math.max(
-      config.minButtonRadiusFrac * minDim,
-      baseRadius * intPow(config.radiusShrinkPerHit, hitCount),
-    )
+    return Math.max(minRadius, baseRadius * intPow(config.radiusShrinkPerHit, hitCount))
   }
 
   return {
     step(cursor: Vec2): Vec2 {
       advanceGlide()
-      const { x: dx, y: dy } = wrappedVec(cursor, center, opts.bounds)
-      const dist = Math.sqrt(dx * dx + dy * dy)
       if (
-        dist < config.triggerRadiusFrac * minDim &&
+        wrappedDist(cursor, center, opts.bounds) < triggerRadius &&
         pendingReadyAtTick === null &&
         tick - lastDodgeTick >= config.cooldownTicks
       ) {
@@ -582,22 +579,16 @@ export function createEvasionEngine(opts: {
       }
       if (pendingReadyAtTick !== null && tick >= pendingReadyAtTick) {
         dodge(cursor)
-        lastDodgeTick = tick
-        pendingReadyAtTick = null
       }
       tick++
       return center
     },
     testHit(x: number, y: number): boolean {
-      const { x: dx, y: dy } = wrappedVec({ x, y }, center, opts.bounds)
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist > currentRadius() + HIT_TOLERANCE_PX) {
+      if (wrappedDist({ x, y }, center, opts.bounds) > currentRadius() + HIT_TOLERANCE_PX) {
         return false
       }
       hitCount++
       dodge({ x, y })
-      lastDodgeTick = tick
-      pendingReadyAtTick = null
       return true
     },
     getCenter: () => center,
