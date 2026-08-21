@@ -35,11 +35,12 @@
     }
   })
 
+  const roundResultReady = computed(() => phase.value === 'ended' && resultReady.value)
   const awaitingName = computed(
-    () => phase.value === 'ended' && resultReady.value && qualifies.value && !nameHandled.value,
+    () => roundResultReady.value && qualifies.value && !nameHandled.value,
   )
   const showGameOver = computed(
-    () => phase.value === 'ended' && resultReady.value && (!qualifies.value || nameHandled.value),
+    () => roundResultReady.value && (!qualifies.value || nameHandled.value),
   )
 
   /** Claims the score under the entered name and refreshes the leaderboard. */
