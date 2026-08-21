@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+# A new push to the same branch makes an in-progress run obsolete, so cancel it
+# rather than paying for both.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Reads the pnpm version from package.json's "packageManager" field, so
+      # CI can't drift from what everyone runs locally.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # Also runs "nuxt prepare" via postinstall, which generates .nuxt/ —
+      # required before linting (eslint.config.mjs imports .nuxt/eslint.config.mjs)
+      # and before typechecking (tsconfig.json references .nuxt/tsconfig.*.json).
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
