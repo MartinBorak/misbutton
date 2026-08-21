@@ -1,9 +1,11 @@
 import type { LeaderboardEntry } from '#shared/leaderboard'
 
+/** Holds the top-3 leaderboard entries and fetches them from the server. */
 export function useLeaderboard() {
   const entries = ref<LeaderboardEntry[]>([])
   const loading = ref(false)
 
+  /** Fetches the current top entries from the server. */
   async function refresh() {
     loading.value = true
     try {

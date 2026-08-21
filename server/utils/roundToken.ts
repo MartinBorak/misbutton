@@ -12,10 +12,12 @@ export interface RoundPayload {
   bot: boolean
 }
 
+/** HMAC-signs a JSON payload string with the round secret. */
 function sign(json: string, secret: string): string {
   return createHmac('sha256', secret).update(json).digest('base64url')
 }
 
+/** Constant-time string equality, to avoid leaking signature bytes via timing. */
 function timingSafeEqualStr(a: string, b: string): boolean {
   const ab = Buffer.from(a)
   const bb = Buffer.from(b)
@@ -25,6 +27,7 @@ function timingSafeEqualStr(a: string, b: string): boolean {
   return timingSafeEqual(ab, bb)
 }
 
+/** Issues a new signed round token carrying the round's seed/bounds/start time. */
 export function issueRoundToken(bounds: Bounds, bot: boolean) {
   const secret = useRuntimeConfig().roundSecret
   const roundId = randomUUID()
@@ -36,6 +39,7 @@ export function issueRoundToken(bounds: Bounds, bot: boolean) {
   return { roundId, token, seed, startedAt }
 }
 
+/** Verifies a round token's signature and shape, returning its payload if valid. */
 export function verifyRoundToken(token: unknown): RoundPayload | null {
   if (typeof token !== 'string') {
     return null

@@ -42,6 +42,7 @@ export function useGameRound() {
   let deadline = 0
   let countdownId: ReturnType<typeof setInterval> | null = null
 
+  /** Stops the countdown interval, if one is running. */
   function clearCountdown() {
     if (countdownId) {
       clearInterval(countdownId)
@@ -49,6 +50,7 @@ export function useGameRound() {
     countdownId = null
   }
 
+  /** Requests a new round from the server and starts the client-side dodge/countdown loop. */
   async function startRound() {
     if (phase.value === 'starting' || phase.value === 'playing') {
       return
@@ -87,6 +89,7 @@ export function useGameRound() {
     }
   }
 
+  /** Ends the round locally and submits the recorded log to the server for the official score. */
   async function endRound() {
     if (phase.value !== 'playing') {
       return
@@ -112,6 +115,7 @@ export function useGameRound() {
     }
   }
 
+  /** Claims a qualifying score under the given name for the leaderboard. */
   async function claim(name: string): Promise<boolean> {
     try {
       const res = await $fetch<ClaimResponse>('/api/round/claim', {
@@ -125,6 +129,7 @@ export function useGameRound() {
     }
   }
 
+  /** Resets round state back to idle after a game-over screen. */
   function reset() {
     phase.value = 'idle'
     qualifies.value = false

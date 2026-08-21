@@ -4,6 +4,7 @@ interface ClaimBody {
   name?: string
 }
 
+/** POST /api/round/claim — records a qualifying round's player name on the leaderboard. */
 export default defineEventHandler(async (event) => {
   const body = await readBody<ClaimBody>(event).catch(() => ({}) as ClaimBody)
 

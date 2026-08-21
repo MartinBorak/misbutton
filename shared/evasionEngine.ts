@@ -193,11 +193,13 @@ function halveUntilSmall(ax: number, halvings: number): number {
   return halveUntilSmall(ax / (1 + Math.sqrt(1 + ax * ax)), halvings + 1)
 }
 
+/** Portable replacement for Math.atan — angle in radians whose tangent is x. */
 function portableAtan(x: number): number {
   const result = halveUntilSmall(x < 0 ? -x : x, 0)
   return x < 0 ? -result : result
 }
 
+/** Portable replacement for Math.atan2 — angle in radians of the vector (x, y). */
 function portableAtan2(y: number, x: number): number {
   if (x > 0) {
     return portableAtan(y / x)
@@ -256,6 +258,7 @@ export function initialButtonRadius(bounds: Bounds, config: EngineConfig = DEFAU
   return config.buttonRadiusFrac * Math.min(bounds.width, bounds.height)
 }
 
+/** Same as initialButtonRadius, but for the proximity-trigger radius. */
 export function initialTriggerRadius(
   bounds: Bounds,
   config: EngineConfig = DEFAULT_CONFIG,
@@ -281,16 +284,20 @@ function cubicBezierEase(x1: number, y1: number, x2: number, y2: number): (t: nu
   const by = 3 * (y2 - y1) - cy
   const ay = 1 - cy - by
 
+  /** The curve's x at parameter t. */
   function sampleX(t: number): number {
     return ((ax * t + bx) * t + cx) * t
   }
+  /** The curve's y at parameter t. */
   function sampleY(t: number): number {
     return ((ay * t + by) * t + cy) * t
   }
+  /** dx/dt at parameter t, used by solveXForT's Newton-Raphson step. */
   function sampleXDerivative(t: number): number {
     return (3 * ax * t + 2 * bx) * t + cx
   }
 
+  /** Finds the parameter t whose x lands on the given progress x, in [0, 1]. */
   function solveXForT(x: number): number {
     let t = x
     for (let i = 0; i < 8; i++) {
@@ -331,6 +338,7 @@ function cubicBezierEase(x1: number, y1: number, x2: number, y2: number): (t: nu
 
 const glideEase = cubicBezierEase(0.16, 1, 0.3, 1)
 
+/** Point at parameter t along the quadratic Bezier curve p0 -> p1 -> p2. */
 function quadBezierPoint(p0: Vec2, p1: Vec2, p2: Vec2, t: number): Vec2 {
   const mt = 1 - t
   const mt2 = mt * mt
@@ -377,6 +385,7 @@ export function wrappedDelta(value: number, size: number): number {
   return d
 }
 
+/** Shortest wrapped vector from b to a, per dimension (see wrappedDelta). */
 function wrappedVec(a: Vec2, b: Vec2, bounds: Bounds): Vec2 {
   return {
     x: wrappedDelta(a.x - b.x, bounds.width),
@@ -455,6 +464,7 @@ export interface EvasionEngine {
   step(cursor: Vec2): Vec2
   /** Test a click/pointerdown against the button's current position. Returns true on a hit. */
   testHit(x: number, y: number): boolean
+  /** Current wrapped position (always inside [0, bounds)). */
   getCenter(): Vec2
   /**
    * Same position as getCenter(), but never wrapped into [0, bounds) — it
@@ -464,6 +474,7 @@ export interface EvasionEngine {
    * true distance/direction of every dodge, however large.
    */
   getRawCenter(): Vec2
+  /** Number of ticks simulated so far. */
   getTick(): number
   /**
    * Current button radius: shrinks by radiusShrinkPerHit on every
@@ -471,6 +482,7 @@ export interface EvasionEngine {
    * and the rendered size, so the two never drift out of sync.
    */
   getRadius(): number
+  /** Snapshot of the round's current progressive-difficulty values, for the dev HUD. */
   getDebugInfo(): EngineDebugInfo
 }
 
@@ -511,6 +523,7 @@ export function createEvasionEngine(opts: {
   let glideTarget: Vec2 = rawCenter
   let glideElapsedTicks = config.glideTicks
 
+  /** How much bigger dodges have gotten from repeated hits, capped at maxDodgeDistMultiplier. */
   function currentDistMultiplier(): number {
     return Math.min(config.maxDodgeDistMultiplier, intPow(config.dodgeDistGrowthPerHit, hitCount))
   }
@@ -555,6 +568,7 @@ export function createEvasionEngine(opts: {
     center = wrapToBounds(rawCenter, opts.bounds)
   }
 
+  /** Triggers a dodge away from awayFrom, taking its first glide step immediately. */
   function dodge(awayFrom: Vec2) {
     startGlide(awayFrom)
     advanceGlide() // same-tick first step, so a dodge is visible immediately
@@ -562,6 +576,7 @@ export function createEvasionEngine(opts: {
 
   const minDim = Math.min(opts.bounds.width, opts.bounds.height)
 
+  /** Current button radius, shrunk by past hits and floored at minButtonRadiusFrac. */
   function currentRadius(): number {
     const baseRadius = config.buttonRadiusFrac * minDim
     return Math.max(

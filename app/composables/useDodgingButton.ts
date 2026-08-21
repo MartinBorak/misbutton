@@ -48,16 +48,19 @@ export function useDodgingButton() {
   let samples: [number, number][] = []
   let hits: DodgeLog['hits'] = []
 
+  /** Tracks the latest cursor position for tick() to use, without a per-tick listener. */
   function onPointerMove(e: PointerEvent) {
     cursor = { x: e.clientX, y: e.clientY }
   }
 
   /**
-   * The dodge's curved glide is now simulated inside the shared engine
-   * itself (see shared/evasionEngine.ts) rather than being a client-only
-   * visual layered on top of an instantly-teleporting position — so what's
-   * rendered here is always exactly the same position hit-testing and
-   * evasion are reacting to, tick for tick.
+   * Pulls the button's current position/radius/debug info from the engine
+   * into the reactive refs the template renders. The dodge's curved glide is
+   * now simulated inside the shared engine itself (see shared/evasionEngine.ts)
+   * rather than being a client-only visual layered on top of an
+   * instantly-teleporting position — so what's rendered here is always
+   * exactly the same position hit-testing and evasion are reacting to, tick
+   * for tick.
    */
   function syncFromEngine() {
     if (!engine) {
@@ -72,6 +75,7 @@ export function useDodgingButton() {
     }
   }
 
+  /** One fixed-timestep frame: records the cursor sample, advances the engine, and syncs the render refs. */
   function tick() {
     if (!engine) {
       return
@@ -82,10 +86,11 @@ export function useDodgingButton() {
   }
 
   /**
-   * A hit landing while the most recent ripple is still in its first half
-   * is dropped rather than restarting it — otherwise rapid hits kept
-   * resetting the ring back to scale 1 and it never visibly grew. Past the
-   * halfway point, a fresh ripple starts and plays on top of the old one
+   * Starts (or skips) a hit-ring ripple animation for a hit landing on tick
+   * tickIndex. A hit landing while the most recent ripple is still in its
+   * first half is dropped rather than restarting it — otherwise rapid hits
+   * kept resetting the ring back to scale 1 and it never visibly grew. Past
+   * the halfway point, a fresh ripple starts and plays on top of the old one
    * instead of cutting it off.
    */
   function triggerHitEffect(tickIndex: number) {
@@ -102,6 +107,7 @@ export function useDodgingButton() {
     rippleTimeouts.add(timeoutId)
   }
 
+  /** Handles a click/tap: tests it against the engine, and on a hit records it and plays the ripple effect. Returns whether it hit. */
   function handlePointerDown(e: PointerEvent): boolean {
     if (!engine) {
       return false
@@ -121,6 +127,7 @@ export function useDodgingButton() {
     return true
   }
 
+  /** Starts a fresh round: resets round state and spins up a new engine + tick loop for the given seed/bounds. */
   function start(seed: number, roundBounds: Bounds) {
     samples = []
     hits = []
@@ -143,6 +150,7 @@ export function useDodgingButton() {
     intervalId = setInterval(tick, TICK_MS)
   }
 
+  /** Stops the tick loop and ripple timers, and returns everything recorded during the round for submission. */
   function stop(): DodgeLog {
     if (intervalId) {
       clearInterval(intervalId)

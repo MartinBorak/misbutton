@@ -45,6 +45,11 @@
     return Math.round((canonical - pos) / size)
   }
 
+  /**
+   * The 3x3 grid of wrapped copies to render around the button's current
+   * drifted position, so a dodge through an edge slides continuously into
+   * view instead of jumping.
+   */
   const copies = computed(() => {
     const { width, height } = props.bounds
     if (!width || !height) {

@@ -23,6 +23,7 @@ export function useTheme() {
 
   const theme = computed(() => THEME_BY_COLOR_MODE[colorMode.value] ?? ColorTheme.LIGHT)
 
+  /** Flips between light and dark. */
   function toggle() {
     colorMode.preference = theme.value === ColorTheme.DARK ? ColorTheme.LIGHT : ColorTheme.DARK
   }

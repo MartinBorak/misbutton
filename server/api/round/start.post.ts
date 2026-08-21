@@ -3,6 +3,7 @@ import type { Bounds } from '#shared/evasionEngine'
 const MIN_DIMENSION = 320
 const MAX_DIMENSION = 10000
 
+/** Clamps a reported viewport dimension into a sane range. */
 function clampDimension(value: unknown): number {
   const n = Math.round(Number(value))
   if (!Number.isFinite(n)) {
@@ -11,6 +12,7 @@ function clampDimension(value: unknown): number {
   return Math.min(Math.max(n, MIN_DIMENSION), MAX_DIMENSION)
 }
 
+/** POST /api/round/start — issues a signed round token and returns the seed/bounds to start a round with. */
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ width?: number; height?: number; webdriver?: boolean }>(
     event,

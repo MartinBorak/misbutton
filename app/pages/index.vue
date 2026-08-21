@@ -42,16 +42,19 @@
     () => phase.value === 'ended' && resultReady.value && (!qualifies.value || nameHandled.value),
   )
 
+  /** Claims the score under the entered name and refreshes the leaderboard. */
   async function onNameSubmit(name: string) {
     await claim(name)
     nameHandled.value = true
     leaderboard.refresh()
   }
 
+  /** Dismisses the name-entry prompt without claiming a leaderboard spot. */
   function onNameSkip() {
     nameHandled.value = true
   }
 
+  /** Resets round state and immediately starts a new round. */
   function onPlayAgain() {
     reset()
     startRound()
@@ -74,6 +77,7 @@
   let idleCenter = { x: 0, y: 0 }
   let idleTriggerRadius = 0
 
+  /** Recomputes the idle button's size/position/trigger radius for the current viewport. */
   function computeIdleGeometry() {
     const bounds = { width: window.innerWidth, height: window.innerHeight }
     idleButtonDiameter.value = initialButtonRadius(bounds) * 2
@@ -81,6 +85,7 @@
     idleCenter = { x: bounds.width / 2, y: bounds.height / 2 }
   }
 
+  /** Starts a round once the cursor gets within the idle trigger radius. */
   function onIdlePointerMove(e: PointerEvent) {
     const dist = Math.hypot(e.clientX - idleCenter.x, e.clientY - idleCenter.y)
     if (dist < idleTriggerRadius) {

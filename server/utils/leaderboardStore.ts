@@ -15,19 +15,23 @@ const KEY = 'leaderboard:top'
 const BUFFER_SIZE = 10
 const TOP_N = 3
 
+/** The unstorage mount backing the leaderboard. */
 function store() {
   return useStorage('leaderboard')
 }
 
+/** Sorts entries by score, highest first, earliest achievedAt breaking ties. */
 function sortEntries(entries: LeaderboardEntry[]): LeaderboardEntry[] {
   return entries.toSorted((a, b) => b.clicks - a.clicks || a.achievedAt - b.achievedAt)
 }
 
+/** Returns the current top n leaderboard entries. */
 export async function getTopEntries(n = TOP_N): Promise<LeaderboardEntry[]> {
   const entries = (await store().getItem<LeaderboardEntry[]>(KEY)) ?? []
   return sortEntries(entries).slice(0, n)
 }
 
+/** Checks whether a score would currently qualify for the top 3, and at what rank. */
 export async function wouldQualify(clicks: number): Promise<QualificationResult> {
   const top = await getTopEntries(TOP_N)
   const beatIndex = top.findIndex((e) => clicks > e.clicks)

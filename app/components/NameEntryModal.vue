@@ -15,6 +15,7 @@
     },
   )
 
+  /** Emits the trimmed, non-empty name as a leaderboard submission. */
   function submit() {
     const trimmed = name.value.trim()
     if (!trimmed) {

@@ -16,6 +16,7 @@ export const IDLE_PULSE_PERIOD_MS = 2600
 
 let epoch: number | null = null
 
+/** Returns a negative animation-delay that phases this element's idle-pulse animation to the shared clock. */
 export function usePulseSync() {
   const delay = ref('0ms')
   onMounted(() => {
