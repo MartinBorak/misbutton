@@ -8,10 +8,18 @@ import { ref } from 'vue'
  * stub the minimal surface actually used.
  */
 
-/** ref works standalone with no component instance; onUnmounted needs one, so it's a no-op here — tests call stop() themselves instead of relying on unmount. */
+/**
+ * ref works standalone with no component instance; onUnmounted needs one, so
+ * it's a no-op here — tests call stop() themselves instead of relying on
+ * unmount. onMounted runs its callback immediately, so composables that
+ * register listeners on mount are actually wired up under test.
+ */
 export function stubVueLifecycle() {
   vi.stubGlobal('ref', ref)
   vi.stubGlobal('onUnmounted', () => {})
+  vi.stubGlobal('onMounted', (fn: () => void) => {
+    fn()
+  })
 }
 
 type Listener = (event: unknown) => void
@@ -47,6 +55,39 @@ export function stubWindow(innerWidth = 1024, innerHeight = 768): FakeWindow {
   }
   vi.stubGlobal('window', fakeWindow)
   return fakeWindow
+}
+
+export interface FakeDocument {
+  addEventListener(type: string, listener: Listener): void
+  removeEventListener(type: string, listener: Listener): void
+  /** Flips `hidden` and fires visibilitychange, as a real tab switch would. */
+  setHidden(hidden: boolean): void
+  hidden: boolean
+}
+
+/** A minimal document stand-in covering the visibility API useGameRound listens on. */
+export function stubDocument(hidden = false): FakeDocument {
+  const listeners = new Map<string, Set<Listener>>()
+  const fakeDocument: FakeDocument = {
+    hidden,
+    addEventListener(type, listener) {
+      if (!listeners.has(type)) {
+        listeners.set(type, new Set())
+      }
+      listeners.get(type)!.add(listener)
+    },
+    removeEventListener(type, listener) {
+      listeners.get(type)?.delete(listener)
+    },
+    setHidden(value) {
+      fakeDocument.hidden = value
+      for (const listener of listeners.get('visibilitychange') ?? []) {
+        listener(undefined)
+      }
+    },
+  }
+  vi.stubGlobal('document', fakeDocument)
+  return fakeDocument
 }
 
 /** Runs the callback synchronously instead of on the next frame, so tests don't need to await real frames. */

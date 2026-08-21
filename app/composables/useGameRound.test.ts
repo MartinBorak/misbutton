@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { ROUND_MS } from '~~/shared/roundConfig'
-import { stubFetch, stubNavigator, stubVueLifecycle, stubWindow } from '~~/tests/helpers/vueGlobals'
+import {
+  stubDocument,
+  stubFetch,
+  stubNavigator,
+  stubVueLifecycle,
+  stubWindow,
+} from '~~/tests/helpers/vueGlobals'
 
 stubVueLifecycle()
 
@@ -29,6 +35,7 @@ function createFakeDodge() {
 
 let fakeDodge: ReturnType<typeof createFakeDodge>
 let fetchMock: ReturnType<typeof stubFetch>
+let fakeDocument: ReturnType<typeof stubDocument>
 
 const { useGameRound } = await import('./useGameRound')
 
@@ -37,6 +44,7 @@ beforeEach(() => {
   vi.stubGlobal('useDodgingButton', () => fakeDodge)
   stubWindow(800, 600)
   stubNavigator(false)
+  fakeDocument = stubDocument()
   fetchMock = stubFetch()
   vi.useFakeTimers()
 })
@@ -205,5 +213,55 @@ describe('useGameRound — reset', () => {
     expect(game.phase.value).toBe('idle')
     expect(game.qualifies.value).toBe(false)
     expect(game.rank.value).toBe(-1)
+  })
+})
+
+describe('useGameRound — hidden tab', () => {
+  it('voids an in-flight round instead of submitting a throttled one', async () => {
+    fetchMock.mockResolvedValueOnce(START_RESPONSE)
+    const game = useGameRound()
+    await game.startRound()
+    expect(game.phase.value).toBe('playing')
+
+    fakeDocument.setHidden(true)
+
+    expect(game.phase.value).toBe('idle')
+    expect(game.errorMessage.value).toMatch(/tab visible/i)
+    expect(fakeDodge.stop).toHaveBeenCalled()
+    // Only the start call — the round must never reach /api/round/submit.
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not submit even after the full round duration elapses', async () => {
+    fetchMock.mockResolvedValueOnce(START_RESPONSE)
+    const game = useGameRound()
+    await game.startRound()
+    fakeDocument.setHidden(true)
+
+    await vi.advanceTimersByTimeAsync(ROUND_MS + 200)
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(game.phase.value).toBe('idle')
+  })
+
+  it('abandons a round whose tab went away while /api/round/start was in flight', async () => {
+    fetchMock.mockImplementationOnce(async () => {
+      fakeDocument.setHidden(true)
+      return START_RESPONSE
+    })
+    const game = useGameRound()
+    await game.startRound()
+
+    expect(game.phase.value).toBe('idle')
+    expect(game.errorMessage.value).toMatch(/tab visible/i)
+    expect(fakeDodge.start).not.toHaveBeenCalled()
+  })
+
+  it('ignores visibility changes when no round is running', async () => {
+    const game = useGameRound()
+    fakeDocument.setHidden(true)
+
+    expect(game.phase.value).toBe('idle')
+    expect(game.errorMessage.value).toBe('')
   })
 })

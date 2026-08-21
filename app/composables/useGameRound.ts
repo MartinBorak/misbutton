@@ -3,6 +3,9 @@ import { ROUND_MS } from '#shared/roundConfig'
 
 export type RoundPhase = 'idle' | 'starting' | 'playing' | 'ended'
 
+/** Shown when a round is voided because the tab stopped being visible (see cancelRound). */
+const TAB_HIDDEN_MESSAGE = 'Round cancelled — keep this tab visible while playing.'
+
 interface StartResponse {
   roundId: string
   token: string
@@ -64,6 +67,15 @@ export function useGameRound() {
           webdriver: navigator.webdriver === true,
         },
       })
+      /**
+       * The tab can go away while /api/round/start is in flight, which would
+       * otherwise begin a round that's throttled from its very first tick.
+       */
+      if (document.hidden) {
+        phase.value = 'idle'
+        errorMessage.value = TAB_HIDDEN_MESSAGE
+        return
+      }
       roundId = res.roundId
       token = res.token
       dodge.start(res.seed, res.bounds)
@@ -130,7 +142,41 @@ export function useGameRound() {
     rank.value = -1
   }
 
-  onUnmounted(clearCountdown)
+  /**
+   * Voids an in-flight round instead of submitting it.
+   *
+   * Browsers throttle timers in hidden tabs to roughly 1/sec, so a round
+   * played in the background records a small fraction of the ~1200 samples
+   * the server expects and gets rejected at submit time — after the player
+   * has already spent the whole round. Nothing worth recording happens while
+   * hidden anyway (the cursor isn't moving), so drop the round the moment the
+   * tab goes away rather than failing 60 seconds later.
+   */
+  function cancelRound() {
+    if (phase.value !== 'playing') {
+      return
+    }
+    clearCountdown()
+    dodge.stop()
+    phase.value = 'idle'
+    errorMessage.value = TAB_HIDDEN_MESSAGE
+  }
+
+  /** Voids the round whenever the tab stops being visible (see cancelRound). */
+  function onVisibilityChange() {
+    if (document.hidden) {
+      cancelRound()
+    }
+  }
+
+  onMounted(() => {
+    document.addEventListener('visibilitychange', onVisibilityChange)
+  })
+
+  onUnmounted(() => {
+    clearCountdown()
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+  })
 
   return {
     phase,
