@@ -4,7 +4,7 @@
  * config-only change in nuxt.config.ts.
  */
 
-import type { LeaderboardEntry } from '#shared/leaderboard'
+import { TOP_N, type LeaderboardEntry } from '#shared/leaderboard'
 
 export interface QualificationResult {
   qualifies: boolean
@@ -15,8 +15,6 @@ export interface QualificationResult {
 const KEY = 'leaderboard:top'
 /** Entries kept in storage — more than TOP_N, so a few runner-ups survive rather than being discarded outright. */
 const BUFFER_SIZE = 10
-/** How many entries actually count as "the leaderboard" — matches the "Top 3" shown in LeaderboardPanel.vue. */
-const TOP_N = 3
 
 /** The unstorage mount backing the leaderboard. */
 function store() {

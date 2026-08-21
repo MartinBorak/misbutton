@@ -1,12 +1,12 @@
 <script setup lang="ts">
-  import type { LeaderboardEntry } from '#shared/leaderboard'
+  import { TOP_N, type LeaderboardEntry } from '#shared/leaderboard'
 
   defineProps<{ entries: LeaderboardEntry[] }>()
 </script>
 
 <template>
   <div class="leaderboard">
-    <p class="leaderboard__title">Top 3</p>
+    <p class="leaderboard__title">Top {{ TOP_N }}</p>
 
     <ol
       v-if="entries.length"
