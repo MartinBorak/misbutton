@@ -172,7 +172,7 @@ button {
   border-radius: 50%;
   box-shadow: 0 0 0.5px 0.5px var(--color-text);
   pointer-events: none;
-  animation: hit-ring var(--ripple-duration, 1.5s) ease-out forwards;
+  animation: hit-ring var(--ripple-duration, 0.7s) ease-out forwards;
 }
 
 @keyframes idle-pulse {

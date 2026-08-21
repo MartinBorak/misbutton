@@ -207,18 +207,24 @@ describe('useDodgingButton', () => {
       }
     }
 
+    /**
+     * Derived from RIPPLE_DURATION_MS rather than hardcoded, so retuning the
+     * (purely aesthetic) ripple duration doesn't break this rule's test.
+     */
+    const halfwayTicks = Math.round(RIPPLE_DURATION_MS / TICK_MS) / 2
+
     const target1 = mirror.getCenter()
     dodge.handlePointerDown({ clientX: target1.x, clientY: target1.y } as PointerEvent)
     mirror.testHit(target1.x, target1.y)
     expect(dodge.ripples.value.length).toBe(1)
 
-    advanceBoth(10) // 500ms since the first ripple — still its first half
+    advanceBoth(1) // still well inside the first ripple's first half
     const target2 = mirror.getCenter()
     dodge.handlePointerDown({ clientX: target2.x, clientY: target2.y } as PointerEvent)
     mirror.testHit(target2.x, target2.y)
     expect(dodge.ripples.value.length).toBe(1) // suppressed
 
-    advanceBoth(10) // 1000ms since the first ripple — past the halfway point
+    advanceBoth(Math.ceil(halfwayTicks)) // now past the first ripple's halfway point
     const target3 = mirror.getCenter()
     dodge.handlePointerDown({ clientX: target3.x, clientY: target3.y } as PointerEvent)
     expect(dodge.ripples.value.length).toBe(2) // allowed, overlaps the first
