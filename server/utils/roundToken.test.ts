@@ -51,7 +51,6 @@ describe('issueRoundToken / verifyRoundToken', () => {
     expect(verifyRoundToken('')).toBeNull()
     expect(verifyRoundToken('no-dot-separator')).toBeNull()
     expect(verifyRoundToken('a.b.c')).toBeNull() // split('.') only keeps the first two parts as json/sig
-    // @ts-expect-error deliberately passing a non-string to check the runtime guard
     expect(verifyRoundToken(null)).toBeNull()
   })
 

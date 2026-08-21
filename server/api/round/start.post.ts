@@ -1,3 +1,5 @@
+import type { Bounds } from '#shared/evasionEngine'
+
 const MIN_DIMENSION = 320
 const MAX_DIMENSION = 10000
 
@@ -20,7 +22,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 429, statusMessage: 'Too many rounds started — slow down.' })
   }
 
-  const bounds = { width: clampDimension(body?.width), height: clampDimension(body?.height) }
+  const bounds: Bounds = {
+    width: clampDimension(body?.width),
+    height: clampDimension(body?.height),
+  }
   const bot = body?.webdriver === true
 
   const { roundId, token, seed, startedAt } = issueRoundToken(bounds, bot)

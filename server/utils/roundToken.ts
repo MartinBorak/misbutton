@@ -1,5 +1,7 @@
 import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 
+import type { Bounds } from '#shared/evasionEngine'
+
 export interface RoundPayload {
   roundId: string
   startedAt: number
@@ -23,7 +25,7 @@ function timingSafeEqualStr(a: string, b: string): boolean {
   return timingSafeEqual(ab, bb)
 }
 
-export function issueRoundToken(bounds: { width: number; height: number }, bot: boolean) {
+export function issueRoundToken(bounds: Bounds, bot: boolean) {
   const secret = useRuntimeConfig().roundSecret
   const roundId = randomUUID()
   const startedAt = Date.now()
@@ -34,7 +36,7 @@ export function issueRoundToken(bounds: { width: number; height: number }, bot: 
   return { roundId, token, seed, startedAt }
 }
 
-export function verifyRoundToken(token: string): RoundPayload | null {
+export function verifyRoundToken(token: unknown): RoundPayload | null {
   if (typeof token !== 'string') {
     return null
   }
