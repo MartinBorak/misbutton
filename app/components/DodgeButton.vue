@@ -4,15 +4,15 @@
     y: number
     /**
      * Ids of the hit-ring ripples currently animating (see
-     *  useDodgingButton.ts) — rendered as one overlay per id so a hit in the
-     *  second half of an existing ripple can overlap it instead of
+     * useDodgingButton.ts) — rendered as one overlay per id so a hit in the
+     * second half of an existing ripple can overlap it instead of
      * restarting it.
      */
     ripples: number[]
     bounds: { width: number; height: number }
     /**
      * Current hit-radius from the engine (shrinks with each click, see
-     *  shared/evasionEngine.ts) — drives both the windowing math below and
+     * shared/evasionEngine.ts) — drives both the windowing math below and
      * the rendered size, so what's drawn always matches what's clickable.
      */
     radius: number
@@ -77,21 +77,21 @@
 <template>
   <div class="dodge-button-group">
     <button
-      v-for="c in copies"
-      :key="c.key"
+      v-for="copy in copies"
+      :key="copy.key"
       class="dodge-button"
       :style="{
-        '--x': `${c.x}px`,
-        '--y': `${c.y}px`,
+        '--x': `${copy.x}px`,
+        '--y': `${copy.y}px`,
         '--button-diameter': `${radius * 2}px`,
         '--idle-pulse-duration': `${IDLE_PULSE_PERIOD_MS}ms`,
         '--ripple-duration': `${RIPPLE_DURATION_MS}ms`,
         'animation-delay': pulseDelay,
       }"
       type="button"
-      :aria-label="c.visible ? 'Catch me!' : undefined"
-      :aria-hidden="c.visible ? undefined : true"
-      :tabindex="c.visible ? undefined : -1"
+      :aria-label="copy.visible ? 'Catch me!' : undefined"
+      :aria-hidden="copy.visible ? undefined : true"
+      :tabindex="copy.visible ? undefined : -1"
       @pointerdown.prevent="$emit('pointerdown', $event)"
     >
       <span
