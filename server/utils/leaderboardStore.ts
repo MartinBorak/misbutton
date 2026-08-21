@@ -6,6 +6,11 @@
 
 import type { LeaderboardEntry } from '#shared/leaderboard'
 
+export interface QualificationResult {
+  qualifies: boolean
+  rank: number
+}
+
 const KEY = 'leaderboard:top'
 const BUFFER_SIZE = 10
 const TOP_N = 3
@@ -24,7 +29,7 @@ export async function getTopEntries(n = TOP_N): Promise<LeaderboardEntry[]> {
   return sortEntries(entries).slice(0, n)
 }
 
-export async function wouldQualify(clicks: number): Promise<{ qualifies: boolean; rank: number }> {
+export async function wouldQualify(clicks: number): Promise<QualificationResult> {
   const top = await getTopEntries(TOP_N)
   const beatIndex = top.findIndex((e) => clicks > e.clicks)
   if (beatIndex !== -1) {
@@ -41,9 +46,7 @@ export async function wouldQualify(clicks: number): Promise<{ qualifies: boolean
  * (re-checked here, not trusted from an earlier wouldQualify call, to avoid a
  * race between two players finishing close together).
  */
-export async function submitEntry(
-  entry: LeaderboardEntry,
-): Promise<{ qualifies: boolean; rank: number }> {
+export async function submitEntry(entry: LeaderboardEntry): Promise<QualificationResult> {
   const existing = (await store().getItem<LeaderboardEntry[]>(KEY)) ?? []
   const updated = sortEntries([...existing, entry]).slice(0, BUFFER_SIZE)
   await store().setItem(KEY, updated)
