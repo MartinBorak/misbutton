@@ -1,4 +1,10 @@
-import { simulateRound, TICK_MS, type HitEvent, type Vec2 } from '#shared/evasionEngine'
+import {
+  simulateRound,
+  TICK_MS,
+  type Bounds,
+  type HitEvent,
+  type Vec2,
+} from '#shared/evasionEngine'
 import { ROUND_MS } from '#shared/roundConfig'
 
 /** Allowed drift between expected and actual round duration — generous enough to absorb normal network/timer jitter. */
@@ -14,6 +20,13 @@ const TICK_SLOP = Math.round(2_000 / TICK_MS)
  */
 const MAX_SPEED_PX_PER_SEC = 15_000
 const MAX_PLAUSIBLE_CLICKS = Math.floor((ROUND_MS / 1000) * 8) // generous headroom above realistic play
+/**
+ * Slack on top of the exact reported bounds for the sample-out-of-bounds
+ * check — real cursor positions can legitimately land slightly outside the
+ * viewport (e.g. a resize racing with round start), so a 0px tolerance would
+ * reject genuine play as cheating.
+ */
+const SAMPLE_BOUNDS_SLOP_PX = 50
 
 interface SubmitBody {
   roundId?: string
@@ -22,11 +35,72 @@ interface SubmitBody {
   hits?: { tick: number; x: number; y: number }[]
 }
 
+interface ValidSubmitBody {
+  roundId: string
+  token: string
+  samples: [number, number][]
+  hits: { tick: number; x: number; y: number }[]
+}
+
+/** Whether a body has every field a submission needs. Narrows body's type when true. */
+function isValidSubmitBody(body: SubmitBody): body is ValidSubmitBody {
+  return Boolean(
+    body.token && body.roundId && Array.isArray(body.samples) && Array.isArray(body.hits),
+  )
+}
+
+/** Parses raw [x, y] tuples into Vec2s (no validation — see isEverySampleFinite/InBounds). */
+function parseSamples(raw: [number, number][]): Vec2[] {
+  return raw.map((s) => ({ x: Number(s?.[0]), y: Number(s?.[1]) }))
+}
+
+function isEverySampleFinite(samples: Vec2[]): boolean {
+  return samples.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
+}
+
+function isEverySampleInBounds(samples: Vec2[], bounds: Bounds): boolean {
+  return samples.every(
+    (p) =>
+      p.x >= -SAMPLE_BOUNDS_SLOP_PX &&
+      p.y >= -SAMPLE_BOUNDS_SLOP_PX &&
+      p.x <= bounds.width + SAMPLE_BOUNDS_SLOP_PX &&
+      p.y <= bounds.height + SAMPLE_BOUNDS_SLOP_PX,
+  )
+}
+
+/** Whether every step between consecutive samples is slower than any real cursor movement. */
+function isMovementPlausible(samples: Vec2[]): boolean {
+  const maxDistPerTick = (MAX_SPEED_PX_PER_SEC * TICK_MS) / 1000
+  for (let i = 1; i < samples.length; i++) {
+    const prev = samples[i - 1]!
+    const curr = samples[i]!
+    if (Math.hypot(curr.x - prev.x, curr.y - prev.y) > maxDistPerTick) {
+      return false
+    }
+  }
+  return true
+}
+
+/** Parses raw hit records into HitEvents (no validation — see isEveryHitValid). */
+function parseHits(raw: { tick: number; x: number; y: number }[]): HitEvent[] {
+  return raw.map((h) => ({ tick: Number(h?.tick), x: Number(h?.x), y: Number(h?.y) }))
+}
+
+function isEveryHitValid(hits: HitEvent[], sampleCount: number): boolean {
+  return hits.every(
+    (h) =>
+      Number.isInteger(h.tick) &&
+      h.tick >= 0 &&
+      h.tick < sampleCount &&
+      Number.isFinite(h.x) &&
+      Number.isFinite(h.y),
+  )
+}
+
 /** POST /api/round/submit — validates a completed round's recorded input and returns the verified score. */
 export default defineEventHandler(async (event) => {
   const body = await readBodySafe<SubmitBody>(event)
-
-  if (!body.token || !body.roundId || !Array.isArray(body.samples) || !Array.isArray(body.hits)) {
+  if (!isValidSubmitBody(body)) {
     throw createError({ statusCode: 400, statusMessage: 'Malformed submission.' })
   }
 
@@ -49,50 +123,30 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Sample count invalid.' })
   }
 
-  const samples: Vec2[] = body.samples.map((s) => ({ x: Number(s?.[0]), y: Number(s?.[1]) }))
-  if (samples.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) {
+  const bounds: Bounds = { width: payload.w, height: payload.h }
+  const samples = parseSamples(body.samples)
+  if (!isEverySampleFinite(samples)) {
     throw createError({ statusCode: 400, statusMessage: 'Malformed sample data.' })
   }
-  if (samples.some((p) => p.x < -50 || p.y < -50 || p.x > payload.w + 50 || p.y > payload.h + 50)) {
+  if (!isEverySampleInBounds(samples, bounds)) {
     throw createError({ statusCode: 400, statusMessage: 'Sample out of bounds.' })
   }
-
-  const maxDistPerTick = (MAX_SPEED_PX_PER_SEC * TICK_MS) / 1000
-  for (let i = 1; i < samples.length; i++) {
-    const prev = samples[i - 1]!
-    const curr = samples[i]!
-    const d = Math.hypot(curr.x - prev.x, curr.y - prev.y)
-    if (d > maxDistPerTick) {
-      throw createError({ statusCode: 400, statusMessage: 'Movement implausible.' })
-    }
+  if (!isMovementPlausible(samples)) {
+    throw createError({ statusCode: 400, statusMessage: 'Movement implausible.' })
   }
 
   if (body.hits.length > MAX_PLAUSIBLE_CLICKS) {
     throw createError({ statusCode: 400, statusMessage: 'Implausible click count.' })
   }
-
-  const hits: HitEvent[] = body.hits.map((h) => ({
-    tick: Number(h?.tick),
-    x: Number(h?.x),
-    y: Number(h?.y),
-  }))
-  if (
-    hits.some(
-      (h) =>
-        !Number.isInteger(h.tick) ||
-        h.tick < 0 ||
-        h.tick >= samples.length ||
-        !Number.isFinite(h.x) ||
-        !Number.isFinite(h.y),
-    )
-  ) {
+  const hits = parseHits(body.hits)
+  if (!isEveryHitValid(hits, samples.length)) {
     throw createError({ statusCode: 400, statusMessage: 'Malformed hit data.' })
   }
 
   const { clicks } = simulateRound({
     samples,
     hits,
-    bounds: { width: payload.w, height: payload.h },
+    bounds,
     seed: payload.seed,
     /**
      * Must match useDodgingButton.ts's start() — the round now begins with
