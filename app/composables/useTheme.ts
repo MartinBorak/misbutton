@@ -3,7 +3,7 @@ const ColorTheme = {
   DARK: 'dark',
 } as const
 
-type Theme = (typeof ColorTheme)[keyof typeof ColorTheme]
+export type Theme = (typeof ColorTheme)[keyof typeof ColorTheme]
 
 /**
  * colorMode.value is typed as a plain string (the module allows custom

@@ -1,10 +1,11 @@
 <script setup lang="ts">
   import type { LeaderboardEntry } from '#shared/leaderboard'
+  import type { Theme } from '~/composables/useTheme'
 
   const props = defineProps<{
     timeRemainingMs: number
     clicks: number
-    theme: 'light' | 'dark'
+    theme: Theme
     entries: LeaderboardEntry[]
     showStats: boolean
   }>()
