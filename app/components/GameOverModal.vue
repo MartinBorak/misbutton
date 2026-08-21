@@ -27,6 +27,15 @@
             Play again
           </button>
         </div>
+
+        <a
+          class="repo-link"
+          :href="REPO_URL"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Source on GitHub
+        </a>
       </div>
     </div>
   </Transition>

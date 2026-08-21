@@ -372,6 +372,40 @@ button {
   line-height: 1.5;
 }
 
+/* Link back to the source repo — on the game-over modal and the unsupported-device notice. */
+.repo-link {
+  display: inline-block;
+  margin-top: 1.25rem;
+  color: var(--color-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/**
+ * Inside a modal the link sits below a real action ("Play again"), so a short
+ * rule demotes it to a footer rather than letting it read as a second choice.
+ * Drawn as a gradient rather than a border so both ends fade out instead of
+ * stopping on a hard edge.
+ */
+.modal-card .repo-link {
+  display: block;
+  position: relative;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+}
+
+.modal-card .repo-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 85%;
+  height: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(to right, transparent, var(--color-border), transparent);
+}
+
 .error-toast {
   position: fixed;
   bottom: 20px;
