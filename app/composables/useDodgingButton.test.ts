@@ -1,6 +1,6 @@
-import { createEvasionEngine } from '#shared/evasionEngine'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createEvasionEngine } from '#shared/evasionEngine'
 import {
   stubRequestAnimationFrame,
   stubVueLifecycle,

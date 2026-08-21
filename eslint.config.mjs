@@ -25,7 +25,7 @@ export default withNuxt(
       // A comment spanning multiple lines must be a /** */ block, not stacked // lines.
       'multiline-comment-style': ['error', 'starred-block'],
       /**
-       * Group imports (packages, then ~/~~ aliases, then relative), alphabetical
+       * Group imports (packages, then ~/~~/# aliases, then relative), alphabetical
        * within each group, blank line between groups. `type` imports sort
        * alongside their value counterparts rather than in a separate block.
        */
@@ -33,7 +33,7 @@ export default withNuxt(
         'error',
         {
           groups: [['builtin', 'external'], 'internal', ['parent', 'sibling', 'index'], 'unknown'],
-          internalPattern: ['^~~?/.+'],
+          internalPattern: ['^~~?/.+', '^#.+'],
           newlinesBetween: 1,
         },
       ],
