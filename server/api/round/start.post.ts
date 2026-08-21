@@ -1,5 +1,11 @@
 import type { Bounds } from '#shared/evasionEngine'
 
+interface StartBody {
+  width?: number
+  height?: number
+  webdriver?: boolean
+}
+
 const MIN_DIMENSION = 320
 const MAX_DIMENSION = 10000
 
@@ -14,9 +20,7 @@ function clampDimension(value: unknown): number {
 
 /** POST /api/round/start — issues a signed round token and returns the seed/bounds to start a round with. */
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ width?: number; height?: number; webdriver?: boolean }>(
-    event,
-  ).catch(() => ({}) as { width?: number; height?: number; webdriver?: boolean })
+  const body = await readBody<StartBody>(event).catch(() => ({}) as StartBody)
 
   const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
   const allowed = await checkRateLimit(ip)
@@ -25,10 +29,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const bounds: Bounds = {
-    width: clampDimension(body?.width),
-    height: clampDimension(body?.height),
+    width: clampDimension(body.width),
+    height: clampDimension(body.height),
   }
-  const bot = body?.webdriver === true
+  const bot = body.webdriver === true
 
   const { roundId, token, seed, startedAt } = issueRoundToken(bounds, bot)
 
