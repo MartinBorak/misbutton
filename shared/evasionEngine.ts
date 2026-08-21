@@ -444,22 +444,6 @@ function dodgeOffset(
   return { x: angleSinCos.cos * dist, y: angleSinCos.sin * dist }
 }
 
-/**
- * Snapshot of the values that drift over a round as the progressive
- * mechanics kick in — for the dev-only HUD readout, nothing gameplay
- * depends on this. All distances are absolute pixels for this engine's
- * actual bounds, already resolved from the *Frac config fractions.
- */
-export interface EngineDebugInfo {
-  tick: number
-  hitCount: number
-  radius: number
-  triggerRadius: number
-  dodgeDistMin: number
-  dodgeDistMax: number
-  dodgeDistMultiplier: number
-}
-
 export interface EvasionEngine {
   /** Advance one tick given the cursor position sampled for this tick. Returns the new button center. */
   step(cursor: Vec2): Vec2
@@ -483,8 +467,6 @@ export interface EvasionEngine {
    * and the rendered size, so the two never drift out of sync.
    */
   getRadius(): number
-  /** Snapshot of the round's current progressive-difficulty values, for the dev HUD. */
-  getDebugInfo(): EngineDebugInfo
 }
 
 export function createEvasionEngine(opts: {
@@ -622,19 +604,6 @@ export function createEvasionEngine(opts: {
     getRawCenter: () => rawCenter,
     getTick: () => tick,
     getRadius: currentRadius,
-    getDebugInfo: () => {
-      const distMultiplier = currentDistMultiplier()
-      const dodgeDistScale = minDim * distMultiplier
-      return {
-        tick,
-        hitCount,
-        radius: currentRadius(),
-        triggerRadius: config.triggerRadiusFrac * minDim,
-        dodgeDistMin: config.dodgeMinDistFrac * dodgeDistScale,
-        dodgeDistMax: config.dodgeMaxDistFrac * dodgeDistScale,
-        dodgeDistMultiplier: distMultiplier,
-      }
-    },
   }
 }
 

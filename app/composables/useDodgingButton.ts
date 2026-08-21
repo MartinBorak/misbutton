@@ -2,7 +2,6 @@ import {
   createEvasionEngine,
   TICK_MS,
   type Bounds,
-  type EngineDebugInfo,
   type EvasionEngine,
   type Vec2,
 } from '#shared/evasionEngine'
@@ -40,7 +39,6 @@ export function useDodgingButton() {
   const clicks = ref(0)
   const bounds = ref<Bounds>({ width: 0, height: 0 })
   const radius = ref(0)
-  const debugInfo = ref<EngineDebugInfo | null>(null)
 
   let engine: EvasionEngine | null = null
   let intervalId: ReturnType<typeof setInterval> | null = null
@@ -57,9 +55,9 @@ export function useDodgingButton() {
   }
 
   /**
-   * Pulls the button's current position/radius/debug info from the engine
-   * into the reactive refs the template renders. The dodge's curved glide is
-   * now simulated inside the shared engine itself (see shared/evasionEngine.ts)
+   * Pulls the button's current position/radius from the engine into the
+   * reactive refs the template renders. The dodge's curved glide is now
+   * simulated inside the shared engine itself (see shared/evasionEngine.ts)
    * rather than being a client-only visual layered on top of an
    * instantly-teleporting position — so what's rendered here is always
    * exactly the same position hit-testing and evasion are reacting to, tick
@@ -73,9 +71,6 @@ export function useDodgingButton() {
     x.value = raw.x
     y.value = raw.y
     radius.value = engine.getRadius()
-    if (import.meta.dev) {
-      debugInfo.value = engine.getDebugInfo()
-    }
   }
 
   /** One fixed-timestep frame: records the cursor sample, advances the engine, and syncs the render refs. */
@@ -161,7 +156,6 @@ export function useDodgingButton() {
     intervalId = null
     window.removeEventListener('pointermove', onPointerMove)
     engine = null
-    debugInfo.value = null
     for (const timeoutId of rippleTimeouts) {
       clearTimeout(timeoutId)
     }
@@ -181,5 +175,5 @@ export function useDodgingButton() {
     window.removeEventListener('pointermove', onPointerMove)
   })
 
-  return { x, y, ripples, clicks, bounds, radius, debugInfo, start, stop, handlePointerDown }
+  return { x, y, ripples, clicks, bounds, radius, start, stop, handlePointerDown }
 }
