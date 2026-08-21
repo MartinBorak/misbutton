@@ -33,7 +33,7 @@ pnpm preview    # preview the production build locally
 Typecheck:
 
 ```bash
-pnpm exec nuxi typecheck
+pnpm typecheck
 ```
 
 Test:

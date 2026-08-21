@@ -1,5 +1,8 @@
 <script setup lang="ts">
   import { initialButtonRadius, initialTriggerRadius } from '#shared/evasionEngine'
+  import { ROUND_MS } from '#shared/roundConfig'
+
+  const roundSeconds = ROUND_MS / 1000
 
   const pointerCapable = usePointerCapability()
   const { theme, toggle } = useTheme()
@@ -93,13 +96,20 @@
     }
   }
 
-  watch(phase, (value) => {
+  /**
+   * Arms the idle proximity listener only while idle. Driven both by phase
+   * changes and once on mount — the watcher can't be `immediate`, since it
+   * touches `window` and setup also runs on the server.
+   */
+  function syncIdleListener(value: RoundPhase) {
     window.removeEventListener('pointermove', onIdlePointerMove)
     if (value === 'idle') {
       computeIdleGeometry()
       window.addEventListener('pointermove', onIdlePointerMove)
     }
-  })
+  }
+
+  watch(phase, syncIdleListener)
 
   onUnmounted(() => {
     window.removeEventListener('pointermove', onIdlePointerMove)
@@ -107,10 +117,7 @@
 
   onMounted(() => {
     leaderboard.refresh()
-    if (phase.value === 'idle') {
-      computeIdleGeometry()
-      window.addEventListener('pointermove', onIdlePointerMove)
-    }
+    syncIdleListener(phase.value)
   })
 </script>
 
@@ -156,7 +163,7 @@
         >
           <h1>Catch me</h1>
 
-          <p>60 seconds. I really don't want to be clicked.</p>
+          <p>{{ roundSeconds }} seconds. I really don't want to be clicked.</p>
         </div>
       </Transition>
 

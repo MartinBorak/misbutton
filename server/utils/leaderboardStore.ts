@@ -4,12 +4,7 @@
  * config-only change in nuxt.config.ts.
  */
 
-import { TOP_N, type LeaderboardEntry } from '#shared/leaderboard'
-
-export interface QualificationResult {
-  qualifies: boolean
-  rank: number
-}
+import { TOP_N, type LeaderboardEntry, type QualificationResult } from '#shared/leaderboard'
 
 /** Storage key for the persisted list; colon-namespaced like roundGuard.ts's keys, so future keys don't collide. */
 const KEY = 'leaderboard:top'
@@ -32,9 +27,9 @@ export async function getTopEntries(n = TOP_N): Promise<LeaderboardEntry[]> {
   return sortEntries(entries).slice(0, n)
 }
 
-/** Checks whether a score would currently qualify for the top 3, and at what rank. */
+/** Checks whether a score would currently qualify for the top N, and at what rank. */
 export async function wouldQualify(clicks: number): Promise<QualificationResult> {
-  const top = await getTopEntries(TOP_N)
+  const top = await getTopEntries()
   const beatIndex = top.findIndex((e) => clicks > e.clicks)
   if (beatIndex !== -1) {
     return { qualifies: true, rank: beatIndex + 1 }

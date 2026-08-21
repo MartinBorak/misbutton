@@ -12,10 +12,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Malformed claim.' })
   }
 
-  const payload = verifyRoundToken(body.token)
-  if (!payload || payload.roundId !== body.roundId) {
-    throw createError({ statusCode: 400, statusMessage: 'Invalid round token.' })
-  }
+  const payload = requireRoundPayload(body.token, body.roundId)
 
   if (payload.bot) {
     throw createError({

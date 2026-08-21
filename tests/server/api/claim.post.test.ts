@@ -10,6 +10,7 @@ const { getRoundResult, markRoundClaimed, markRoundUsed } =
 const { getTopEntries, submitEntry } = await import('~~/server/utils/leaderboardStore')
 const { sanitizeName } = await import('~~/server/utils/validation')
 const { readBodySafe } = await import('~~/server/utils/readBodySafe')
+const { requireRoundPayload } = await import('~~/server/utils/requireRoundPayload')
 
 vi.stubGlobal('verifyRoundToken', verifyRoundToken)
 vi.stubGlobal('getRoundResult', getRoundResult)
@@ -17,6 +18,7 @@ vi.stubGlobal('markRoundClaimed', markRoundClaimed)
 vi.stubGlobal('sanitizeName', sanitizeName)
 vi.stubGlobal('submitEntry', submitEntry)
 vi.stubGlobal('readBodySafe', readBodySafe)
+vi.stubGlobal('requireRoundPayload', requireRoundPayload)
 
 const handlerModule = await import('~~/server/api/round/claim.post')
 const handler = handlerModule.default as (event: unknown) => Promise<unknown>

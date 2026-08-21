@@ -1,3 +1,4 @@
+import type { QualificationResult } from '#shared/leaderboard'
 import { ROUND_MS } from '#shared/roundConfig'
 
 export type RoundPhase = 'idle' | 'starting' | 'playing' | 'ended'
@@ -10,15 +11,8 @@ interface StartResponse {
   bounds: { width: number; height: number }
 }
 
-interface SubmitResponse {
+interface SubmitResponse extends QualificationResult {
   clicks: number
-  qualifies: boolean
-  rank: number
-}
-
-interface ClaimResponse {
-  qualifies: boolean
-  rank: number
 }
 
 /**
@@ -118,7 +112,7 @@ export function useGameRound() {
   /** Claims a qualifying score under the given name for the leaderboard. */
   async function claim(name: string): Promise<boolean> {
     try {
-      const res = await $fetch<ClaimResponse>('/api/round/claim', {
+      const res = await $fetch<QualificationResult>('/api/round/claim', {
         method: 'POST',
         body: { roundId, token, name },
       })

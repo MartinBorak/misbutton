@@ -54,10 +54,12 @@ function parseSamples(raw: [number, number][]): Vec2[] {
   return raw.map((s) => ({ x: Number(s?.[0]), y: Number(s?.[1]) }))
 }
 
+/** Whether every sample parsed to real numbers (guards against NaN from malformed input). */
 function isEverySampleFinite(samples: Vec2[]): boolean {
   return samples.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
 }
 
+/** Whether every sample sits inside the round's reported viewport, plus SAMPLE_BOUNDS_SLOP_PX. */
 function isEverySampleInBounds(samples: Vec2[], bounds: Bounds): boolean {
   return samples.every(
     (p) =>
@@ -86,6 +88,7 @@ function parseHits(raw: { tick: number; x: number; y: number }[]): HitEvent[] {
   return raw.map((h) => ({ tick: Number(h?.tick), x: Number(h?.x), y: Number(h?.y) }))
 }
 
+/** Whether every hit carries a real coordinate and an in-range integer tick. */
 function isEveryHitValid(hits: HitEvent[], sampleCount: number): boolean {
   return hits.every(
     (h) =>
@@ -104,10 +107,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Malformed submission.' })
   }
 
-  const payload = verifyRoundToken(body.token)
-  if (!payload || payload.roundId !== body.roundId) {
-    throw createError({ statusCode: 400, statusMessage: 'Invalid round token.' })
-  }
+  const payload = requireRoundPayload(body.token, body.roundId)
 
   if (await getRoundResult(payload.roundId)) {
     throw createError({ statusCode: 409, statusMessage: 'Round already submitted.' })
