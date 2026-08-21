@@ -6,9 +6,11 @@ stubServerApiBasics()
 
 const { issueRoundToken } = await import('~~/server/utils/roundToken')
 const { checkRateLimit } = await import('~~/server/utils/roundGuard')
+const { readBodySafe } = await import('~~/server/utils/readBodySafe')
 
 vi.stubGlobal('issueRoundToken', issueRoundToken)
 vi.stubGlobal('checkRateLimit', checkRateLimit)
+vi.stubGlobal('readBodySafe', readBodySafe)
 
 function stubIp(ip: string) {
   vi.stubGlobal('getRequestIP', () => ip)

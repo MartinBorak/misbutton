@@ -22,7 +22,7 @@ function clampDimension(value: unknown): number {
 
 /** POST /api/round/start — issues a signed round token and returns the seed/bounds to start a round with. */
 export default defineEventHandler(async (event) => {
-  const body = await readBody<StartBody>(event).catch(() => ({}) as StartBody)
+  const body = await readBodySafe<StartBody>(event)
 
   const ip = getRequestIP(event, { xForwardedFor: true }) ?? 'unknown'
   const allowed = await checkRateLimit(ip)

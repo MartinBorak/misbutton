@@ -11,6 +11,7 @@ stubServerApiBasics()
 const { issueRoundToken, verifyRoundToken } = await import('~~/server/utils/roundToken')
 const { getRoundResult, markRoundUsed } = await import('~~/server/utils/roundGuard')
 const { wouldQualify } = await import('~~/server/utils/leaderboardStore')
+const { readBodySafe } = await import('~~/server/utils/readBodySafe')
 
 /**
  * submit.post.ts calls these as bare globals too (Nitro server auto-imports
@@ -21,6 +22,7 @@ vi.stubGlobal('verifyRoundToken', verifyRoundToken)
 vi.stubGlobal('getRoundResult', getRoundResult)
 vi.stubGlobal('markRoundUsed', markRoundUsed)
 vi.stubGlobal('wouldQualify', wouldQualify)
+vi.stubGlobal('readBodySafe', readBodySafe)
 
 const handlerModule = await import('~~/server/api/round/submit.post')
 const handler = handlerModule.default as (event: unknown) => Promise<unknown>

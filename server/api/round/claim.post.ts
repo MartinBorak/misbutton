@@ -6,7 +6,7 @@ interface ClaimBody {
 
 /** POST /api/round/claim — records a qualifying round's player name on the leaderboard. */
 export default defineEventHandler(async (event) => {
-  const body = await readBody<ClaimBody>(event).catch(() => ({}) as ClaimBody)
+  const body = await readBodySafe<ClaimBody>(event)
 
   if (!body.roundId || !body.token) {
     throw createError({ statusCode: 400, statusMessage: 'Malformed claim.' })

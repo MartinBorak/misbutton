@@ -9,12 +9,14 @@ const { getRoundResult, markRoundClaimed, markRoundUsed } =
   await import('~~/server/utils/roundGuard')
 const { getTopEntries, submitEntry } = await import('~~/server/utils/leaderboardStore')
 const { sanitizeName } = await import('~~/server/utils/validation')
+const { readBodySafe } = await import('~~/server/utils/readBodySafe')
 
 vi.stubGlobal('verifyRoundToken', verifyRoundToken)
 vi.stubGlobal('getRoundResult', getRoundResult)
 vi.stubGlobal('markRoundClaimed', markRoundClaimed)
 vi.stubGlobal('sanitizeName', sanitizeName)
 vi.stubGlobal('submitEntry', submitEntry)
+vi.stubGlobal('readBodySafe', readBodySafe)
 
 const handlerModule = await import('~~/server/api/round/claim.post')
 const handler = handlerModule.default as (event: unknown) => Promise<unknown>

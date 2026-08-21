@@ -24,7 +24,7 @@ interface SubmitBody {
 
 /** POST /api/round/submit — validates a completed round's recorded input and returns the verified score. */
 export default defineEventHandler(async (event) => {
-  const body = await readBody<SubmitBody>(event).catch(() => ({}) as SubmitBody)
+  const body = await readBodySafe<SubmitBody>(event)
 
   if (!body.token || !body.roundId || !Array.isArray(body.samples) || !Array.isArray(body.hits)) {
     throw createError({ statusCode: 400, statusMessage: 'Malformed submission.' })
