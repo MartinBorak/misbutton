@@ -50,6 +50,20 @@ function isValidSubmitBody(body: SubmitBody): body is ValidSubmitBody {
   )
 }
 
+/**
+ * Logs why a submission was rejected, then throws it.
+ *
+ * A rejection costs a player the full minute they just spent, and the
+ * response tells them only that it failed — so without this, a report of
+ * "it lost my score" can't be answered without reproducing it first. One
+ * function, so a check added later can't quietly skip the log. The prefix
+ * is there to filter on in the platform logs.
+ */
+function reject(statusCode: number, reason: string, detail?: Record<string, unknown>): never {
+  console.warn('[round:rejected]', JSON.stringify({ reason, ...detail }))
+  throw createError({ statusCode, statusMessage: reason })
+}
+
 /** Parses raw [x, y] tuples into Vec2s (no validation — see isEverySampleFinite/InBounds). */
 function parseSamples(raw: [number, number][]): Vec2[] {
   return raw.map((s) => ({ x: Number(s?.[0]), y: Number(s?.[1]) }))
@@ -115,43 +129,49 @@ function isEveryHitValid(hits: HitEvent[], sampleCount: number): boolean {
 export default defineEventHandler(async (event) => {
   const body = await readBodySafe<SubmitBody>(event)
   if (!isValidSubmitBody(body)) {
-    throw createError({ statusCode: 400, statusMessage: 'Malformed submission.' })
+    reject(400, 'Malformed submission.')
   }
 
   const payload = requireRoundPayload(body.token, body.roundId)
+  /** Included in every rejection below, so a log line says which round it was. */
+  const roundId = payload.roundId
 
   if (await getRoundResult(payload.roundId)) {
-    throw createError({ statusCode: 409, statusMessage: 'Round already submitted.' })
+    reject(409, 'Round already submitted.', { roundId })
   }
 
   const elapsed = Date.now() - payload.startedAt
   if (elapsed < ROUND_MS - ROUND_SLOP_MS || elapsed > ROUND_MS + ROUND_SLOP_MS) {
-    throw createError({ statusCode: 400, statusMessage: 'Round timing invalid.' })
+    reject(400, 'Round timing invalid.', { roundId, elapsedMs: elapsed, expectedMs: ROUND_MS })
   }
 
   const expectedTicks = Math.round(ROUND_MS / TICK_MS)
   if (Math.abs(body.samples.length - expectedTicks) > TICK_SLOP) {
-    throw createError({ statusCode: 400, statusMessage: 'Sample count invalid.' })
+    reject(400, 'Sample count invalid.', {
+      roundId,
+      samples: body.samples.length,
+      expected: expectedTicks,
+    })
   }
 
   const bounds: Bounds = { width: payload.w, height: payload.h }
   const samples = parseSamples(body.samples)
   if (!isEverySampleFinite(samples)) {
-    throw createError({ statusCode: 400, statusMessage: 'Malformed sample data.' })
+    reject(400, 'Malformed sample data.', { roundId })
   }
   if (!isEverySampleInBounds(samples, bounds)) {
-    throw createError({ statusCode: 400, statusMessage: 'Sample out of bounds.' })
+    reject(400, 'Sample out of bounds.', { roundId, bounds })
   }
   if (!isMovementPlausible(samples)) {
-    throw createError({ statusCode: 400, statusMessage: 'Movement implausible.' })
+    reject(400, 'Movement implausible.', { roundId })
   }
 
   if (body.hits.length > MAX_PLAUSIBLE_CLICKS) {
-    throw createError({ statusCode: 400, statusMessage: 'Implausible click count.' })
+    reject(400, 'Implausible click count.', { roundId, hits: body.hits.length })
   }
   const hits = parseHits(body.hits)
   if (!isEveryHitValid(hits, samples.length)) {
-    throw createError({ statusCode: 400, statusMessage: 'Malformed hit data.' })
+    reject(400, 'Malformed hit data.', { roundId })
   }
 
   const { clicks } = simulateRound({

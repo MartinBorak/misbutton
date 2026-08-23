@@ -9,6 +9,14 @@ import type { RoundPayload } from './roundToken'
 export function requireRoundPayload(token: unknown, roundId: unknown): RoundPayload {
   const payload = verifyRoundToken(token)
   if (!payload || payload.roundId !== roundId) {
+    /**
+     * Logged like submit.post.ts's rejections — a player loses a finished
+     * round here too. Which of the two causes it was stays server-side.
+     */
+    console.warn(
+      '[round:rejected]',
+      JSON.stringify({ reason: 'Invalid round token.', verified: Boolean(payload) }),
+    )
     throw createError({ statusCode: 400, statusMessage: 'Invalid round token.' })
   }
   return payload

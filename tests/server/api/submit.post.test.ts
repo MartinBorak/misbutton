@@ -194,6 +194,73 @@ describe('POST /api/round/submit — input validation', () => {
   })
 })
 
+describe('POST /api/round/submit — rejection logging', () => {
+  /**
+   * The response tells a player only that their score didn't save. The reason
+   * is computed here and would otherwise be discarded, leaving a report of
+   * "it lost my round" impossible to answer without reproducing it first — so
+   * every rejection has to reach the logs with the numbers that explain it.
+   */
+  function captureWarnings() {
+    return vi.spyOn(console, 'warn').mockImplementation(() => {})
+  }
+
+  /** The parsed payloads of every '[round:rejected]' line the handler logged. */
+  function loggedRejections(warn: ReturnType<typeof captureWarnings>) {
+    return warn.mock.calls
+      .filter(([prefix]) => prefix === '[round:rejected]')
+      .map(([, payload]) => JSON.parse(payload as string))
+  }
+
+  it('logs the reason and the numbers behind it', async () => {
+    const warn = captureWarnings()
+    const { roundId, token } = await startRound()
+    const samples = calmSamples(10) // far short of the expected 1200
+
+    await expect(submitAt(ROUND_MS, { roundId, token, samples, hits: [] })).rejects.toMatchObject({
+      statusMessage: 'Sample count invalid.',
+    })
+
+    expect(loggedRejections(warn)).toEqual([
+      expect.objectContaining({
+        reason: 'Sample count invalid.',
+        roundId,
+        samples: 10,
+        expected: EXPECTED_TICKS,
+      }),
+    ])
+    warn.mockRestore()
+  })
+
+  it('logs the arena a rejected sample was measured against', async () => {
+    const warn = captureWarnings()
+    const { roundId, token } = await startRound()
+    const samples = calmSamples()
+    samples[5] = [500, -100_000]
+
+    await expect(submitAt(ROUND_MS, { roundId, token, samples, hits: [] })).rejects.toMatchObject({
+      statusMessage: 'Sample out of bounds.',
+    })
+
+    expect(loggedRejections(warn)[0]).toMatchObject({
+      reason: 'Sample out of bounds.',
+      roundId,
+      bounds: BOUNDS,
+    })
+    warn.mockRestore()
+  })
+
+  it('stays quiet when a round submits cleanly', async () => {
+    const warn = captureWarnings()
+    const { roundId, token } = await startRound()
+
+    await submitAt(ROUND_MS, { roundId, token, samples: calmSamples(), hits: [] })
+
+    expect(loggedRejections(warn)).toEqual([])
+    warn.mockRestore()
+  })
+})
+
 describe('POST /api/round/submit — movement plausibility', () => {
   /**
    * Regression coverage for the false-positive rejection fixed this session:
