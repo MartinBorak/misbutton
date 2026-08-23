@@ -5,6 +5,7 @@ import {
   type HitEvent,
   type Vec2,
 } from '#shared/evasionEngine'
+import { MAX_OVERHANG_ABOVE_PX, MAX_OVERHANG_BELOW_PX } from '#shared/layout'
 import { ROUND_MS } from '#shared/roundConfig'
 
 /** Allowed drift between expected and actual round duration — generous enough to absorb normal network/timer jitter. */
@@ -59,14 +60,24 @@ function isEverySampleFinite(samples: Vec2[]): boolean {
   return samples.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
 }
 
-/** Whether every sample sits inside the round's reported viewport, plus SAMPLE_BOUNDS_SLOP_PX. */
+/**
+ * Whether every sample sits somewhere the cursor could really have been.
+ *
+ * Not simply "inside the round's bounds": the bounds describe the arena,
+ * which is inset from the window by the HUD band above and the footer band
+ * below (see #shared/layout), while the cursor is free to roam the whole
+ * window. Samples are recorded in arena coordinates, so a player who drifts
+ * up over the leaderboard legitimately reports a negative y. Vertically the
+ * allowance is therefore a band's worth of overhang on each side; the arena
+ * spans the full window width, so horizontally it stays just the slop.
+ */
 function isEverySampleInBounds(samples: Vec2[], bounds: Bounds): boolean {
   return samples.every(
     (p) =>
       p.x >= -SAMPLE_BOUNDS_SLOP_PX &&
-      p.y >= -SAMPLE_BOUNDS_SLOP_PX &&
       p.x <= bounds.width + SAMPLE_BOUNDS_SLOP_PX &&
-      p.y <= bounds.height + SAMPLE_BOUNDS_SLOP_PX,
+      p.y >= -(MAX_OVERHANG_ABOVE_PX + SAMPLE_BOUNDS_SLOP_PX) &&
+      p.y <= bounds.height + MAX_OVERHANG_BELOW_PX + SAMPLE_BOUNDS_SLOP_PX,
   )
 }
 

@@ -29,20 +29,32 @@ function createFakeDodge() {
     bounds: ref({ width: 0, height: 0 }),
     start: vi.fn(),
     stop: vi.fn(() => ({ samples: [[1, 2]], hits: [{ tick: 0, x: 1, y: 2 }] })),
+    setOrigin: vi.fn(),
     handlePointerDown: vi.fn(() => true),
   }
+}
+
+/**
+ * Stands in for the arena element useGameRound measures a round's bounds and
+ * coordinate origin from — a bare rect is the whole surface it touches.
+ */
+function fakeArena(left: number, top: number, width: number, height: number) {
+  return ref({
+    getBoundingClientRect: () => ({ left, top, width, height }),
+  } as unknown as HTMLElement)
 }
 
 let fakeDodge: ReturnType<typeof createFakeDodge>
 let fetchMock: ReturnType<typeof stubFetch>
 let fakeDocument: ReturnType<typeof stubDocument>
+let fakeWindow: ReturnType<typeof stubWindow>
 
 const { useGameRound } = await import('./useGameRound')
 
 beforeEach(() => {
   fakeDodge = createFakeDodge()
   vi.stubGlobal('useDodgingButton', () => fakeDodge)
-  stubWindow(800, 600)
+  fakeWindow = stubWindow(800, 600)
   stubNavigator(false)
   fakeDocument = stubDocument()
   fetchMock = stubFetch()
@@ -81,9 +93,49 @@ describe('useGameRound — startRound', () => {
       method: 'POST',
       body: { width: 800, height: 600, webdriver: false },
     })
-    expect(fakeDodge.start).toHaveBeenCalledWith(42, { width: 800, height: 600 })
+    expect(fakeDodge.start).toHaveBeenCalledWith(
+      42,
+      { width: 800, height: 600 },
+      { x: 0, y: 0 }, // no arena element: the whole viewport is the play area
+    )
     expect(game.phase.value).toBe('playing')
     expect(game.timeRemainingMs.value).toBe(ROUND_MS)
+  })
+
+  it('reports the arena rect, not the viewport, and starts the round at its origin', async () => {
+    /**
+     * The play area is inset from the viewport by the HUD band above it and
+     * the footer band below (see main.css), so the button can't end up
+     * pressed against the browser's own chrome. That inset is only real if
+     * the round is sized and positioned by the arena's rect: bounds smaller
+     * than the window, and an origin every incoming pointer coordinate is
+     * measured from.
+     */
+    fetchMock.mockResolvedValueOnce({ ...START_RESPONSE, bounds: { width: 800, height: 460 } })
+    const game = useGameRound(fakeArena(0, 140, 800, 460))
+
+    await game.startRound()
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/round/start', {
+      method: 'POST',
+      body: { width: 800, height: 460, webdriver: false },
+    })
+    expect(fakeDodge.start).toHaveBeenCalledWith(42, { width: 800, height: 460 }, { x: 0, y: 140 })
+  })
+
+  it('plays the round against the bounds the server echoed back, not the measured ones', async () => {
+    /**
+     * The server rounds and clamps whatever dimensions it's told
+     * (start.post.ts) and replays the round against the result, so a client
+     * that kept using its own measurement would have every hit rejected at
+     * submit time.
+     */
+    fetchMock.mockResolvedValueOnce({ ...START_RESPONSE, bounds: { width: 800, height: 320 } })
+    const game = useGameRound(fakeArena(0, 140, 800, 299.5))
+
+    await game.startRound()
+
+    expect(fakeDodge.start).toHaveBeenCalledWith(42, { width: 800, height: 320 }, expect.anything())
   })
 
   it('reports webdriver: true when navigator.webdriver is set', async () => {
@@ -213,6 +265,35 @@ describe('useGameRound — reset', () => {
     expect(game.phase.value).toBe('idle')
     expect(game.qualifies.value).toBe(false)
     expect(game.rank.value).toBe(-1)
+  })
+})
+
+describe('useGameRound — a resize that moves the arena', () => {
+  it('re-points the coordinate origin at the arena mid-round', async () => {
+    /**
+     * The bands are sized off the viewport, so a resize slides the arena up
+     * or down. The round's bounds stay frozen either way (the server is
+     * replaying against them), but the button is drawn inside the arena —
+     * without following the move, every click for the rest of the round
+     * lands offset from the button it was aimed at.
+     */
+    const arena = fakeArena(0, 140, 800, 460)
+    fetchMock.mockResolvedValueOnce(START_RESPONSE)
+    const game = useGameRound(arena)
+    await game.startRound()
+
+    arena.value = fakeArena(0, 96, 800, 380).value
+    fakeWindow.dispatch('resize', {})
+
+    expect(fakeDodge.setOrigin).toHaveBeenCalledWith({ x: 0, y: 96 })
+  })
+
+  it('leaves the origin alone when no round is running', () => {
+    useGameRound(fakeArena(0, 140, 800, 460))
+
+    fakeWindow.dispatch('resize', {})
+
+    expect(fakeDodge.setOrigin).not.toHaveBeenCalled()
   })
 })
 

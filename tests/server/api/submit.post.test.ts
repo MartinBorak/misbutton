@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  BAND_BOTTOM_MIN_REM,
+  BAND_TOP_MIN_REM,
+  DEFAULT_ROOT_FONT_PX,
+  MAX_OVERHANG_ABOVE_PX,
+} from '#shared/layout'
 import { fakeEvent, stubServerApiBasics, stubStorage } from '~~/tests/helpers/nuxtGlobals'
 
 /**
@@ -132,6 +138,35 @@ describe('POST /api/round/submit — input validation', () => {
     const { roundId, token } = await startRound()
     const samples = calmSamples()
     samples[5] = [100_000, 400]
+    await expect(submitAt(ROUND_MS, { roundId, token, samples, hits: [] })).rejects.toMatchObject({
+      statusCode: 400,
+      statusMessage: 'Sample out of bounds.',
+    })
+  })
+
+  it('accepts samples in the bands above and below the arena', async () => {
+    /**
+     * Regression coverage: samples are recorded in arena coordinates, and
+     * the arena is inset from the window by the HUD band above it and the
+     * footer band below. A player whose cursor drifts over the leaderboard
+     * reports a negative y — entirely legitimate, but it used to be read as
+     * a sample outside the bounds and cost them the whole round.
+     */
+    const { roundId, token } = await startRound()
+    const samples = calmSamples()
+    // Kept far apart in the array so neither excursion reads as a teleport.
+    samples[5] = [500, -BAND_TOP_MIN_REM * DEFAULT_ROOT_FONT_PX]
+    samples[100] = [500, BOUNDS.height + BAND_BOTTOM_MIN_REM * DEFAULT_ROOT_FONT_PX]
+
+    await expect(submitAt(ROUND_MS, { roundId, token, samples, hits: [] })).resolves.toMatchObject({
+      clicks: 0,
+    })
+  })
+
+  it('still rejects a sample further out than any band could put it', async () => {
+    const { roundId, token } = await startRound()
+    const samples = calmSamples()
+    samples[5] = [500, -(MAX_OVERHANG_ABOVE_PX + 200)]
     await expect(submitAt(ROUND_MS, { roundId, token, samples, hits: [] })).rejects.toMatchObject({
       statusCode: 400,
       statusMessage: 'Sample out of bounds.',

@@ -1,12 +1,40 @@
 <script setup lang="ts">
   import { initialButtonRadius, initialTriggerRadius } from '#shared/evasionEngine'
+  import {
+    BAND_BOTTOM_MAX_REM,
+    BAND_BOTTOM_MIN_REM,
+    BAND_TOP_MAX_REM,
+    BAND_TOP_MIN_REM,
+  } from '#shared/layout'
   import { ROUND_MS } from '#shared/roundConfig'
+  import { measureArena } from '~/utils/arena'
 
   const roundSeconds = ROUND_MS / 1000
+
+  /**
+   * The band heights main.css sizes the arena's inset with. They're defined
+   * in #shared/layout rather than in the stylesheet because the server
+   * derives its out-of-bounds tolerance from the same numbers — see
+   * server/api/round/submit.post.ts.
+   */
+  const bandStyle = {
+    '--band-top-min': `${BAND_TOP_MIN_REM}rem`,
+    '--band-top-max': `${BAND_TOP_MAX_REM}rem`,
+    '--band-bottom-min': `${BAND_BOTTOM_MIN_REM}rem`,
+    '--band-bottom-max': `${BAND_BOTTOM_MAX_REM}rem`,
+  }
 
   const pointerCapable = usePointerCapability()
   const { theme, toggle } = useTheme()
   const leaderboard = useLeaderboard()
+
+  /**
+   * The play area proper, inset from the viewport by the HUD band above and
+   * the footer band below (see main.css). Everything positional — a round's
+   * bounds, the coordinate origin, the idle button's resting spot — is
+   * measured off this element rather than off the window.
+   */
+  const arenaElement = ref<HTMLElement | null>(null)
 
   const {
     phase,
@@ -26,7 +54,7 @@
     startRound,
     claim,
     reset,
-  } = useGameRound()
+  } = useGameRound(arenaElement)
 
   const nameHandled = ref(false)
 
@@ -79,12 +107,16 @@
   let idleCenter = { x: 0, y: 0 }
   let idleTriggerRadius = 0
 
-  /** Recomputes the idle button's size/position/trigger radius for the current viewport. */
+  /**
+   * Recomputes the idle button's size/position/trigger radius for the
+   * current arena. idleCenter stays in viewport coordinates, since it's
+   * compared against raw pointer events in onIdlePointerMove.
+   */
   function computeIdleGeometry() {
-    const bounds = { width: window.innerWidth, height: window.innerHeight }
+    const { origin, bounds } = measureArena(arenaElement.value)
     idleButtonDiameter.value = initialButtonRadius(bounds) * 2
     idleTriggerRadius = initialTriggerRadius(bounds) * IDLE_TRIGGER_RADIUS_MULTIPLIER
-    idleCenter = { x: bounds.width / 2, y: bounds.height / 2 }
+    idleCenter = { x: origin.x + bounds.width / 2, y: origin.y + bounds.height / 2 }
   }
 
   /** Starts a round once the cursor gets within the idle trigger radius. */
@@ -122,7 +154,10 @@
 </script>
 
 <template>
-  <div class="play-field">
+  <div
+    class="play-field"
+    :style="bandStyle"
+  >
     <UnsupportedDeviceNotice v-if="pointerCapable === false" />
 
     <template v-else>
@@ -135,44 +170,51 @@
         @toggle-theme="toggle"
       />
 
-      <DodgeButton
-        v-if="phase === 'playing'"
-        :x="dodgeX"
-        :y="dodgeY"
-        :ripples="dodgeRipples"
-        :bounds="dodgeBounds"
-        :radius="dodgeRadius"
-        @pointerdown="handlePointerDown"
-      />
-
       <div
-        v-if="phase === 'idle' || phase === 'starting'"
-        class="idle-button"
-        :style="{
-          '--button-diameter': `${idleButtonDiameter}px`,
-          '--idle-pulse-duration': `${IDLE_PULSE_PERIOD_MS}ms`,
-          'animation-delay': idlePulseDelay,
-        }"
-        aria-hidden="true"
-      />
-
-      <Transition name="idle-text">
-        <div
-          v-if="phase === 'idle'"
-          class="idle-card"
-        >
-          <h1>Catch me</h1>
-
-          <p>{{ roundSeconds }} seconds. I really don't want to be clicked.</p>
-        </div>
-      </Transition>
-
-      <p
-        v-if="phase === 'ended' && !resultReady"
-        class="result-pending"
+        ref="arenaElement"
+        class="arena"
       >
-        Tallying your score…
-      </p>
+        <DodgeButton
+          v-if="phase === 'playing'"
+          :x="dodgeX"
+          :y="dodgeY"
+          :ripples="dodgeRipples"
+          :bounds="dodgeBounds"
+          :radius="dodgeRadius"
+          @pointerdown="handlePointerDown"
+        />
+
+        <div
+          v-if="phase === 'idle' || phase === 'starting'"
+          class="idle-button"
+          :style="{
+            '--button-diameter': `${idleButtonDiameter}px`,
+            '--idle-pulse-duration': `${IDLE_PULSE_PERIOD_MS}ms`,
+            'animation-delay': idlePulseDelay,
+          }"
+          aria-hidden="true"
+        />
+
+        <Transition name="idle-text">
+          <div
+            v-if="phase === 'idle'"
+            class="idle-card"
+          >
+            <h1>Catch me</h1>
+
+            <p>{{ roundSeconds }} seconds. I really don't want to be clicked.</p>
+          </div>
+        </Transition>
+
+        <p
+          v-if="phase === 'ended' && !resultReady"
+          class="result-pending"
+        >
+          Tallying your score…
+        </p>
+      </div>
+
+      <GameFooter :interactive="phase !== 'playing'" />
 
       <p
         v-if="errorMessage"

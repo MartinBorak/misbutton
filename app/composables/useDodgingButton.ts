@@ -49,10 +49,24 @@ export function useDodgingButton() {
   let cursor: Vec2 = { x: 0, y: 0 }
   let samples: [number, number][] = []
   let hits: DodgeLog['hits'] = []
+  /**
+   * Viewport position of the arena's top-left corner. The arena is inset
+   * from the viewport (see app/utils/arena.ts), so every incoming
+   * clientX/clientY has to be shifted into arena space before the engine
+   * sees it — the engine, the recorded log and the server's replay all work
+   * purely in arena coordinates and know nothing about where on screen the
+   * arena happens to be.
+   */
+  let origin: Vec2 = { x: 0, y: 0 }
+
+  /** Converts a pointer event's viewport coordinates into arena space. */
+  function toArena(e: { clientX: number; clientY: number }): Vec2 {
+    return { x: e.clientX - origin.x, y: e.clientY - origin.y }
+  }
 
   /** Tracks the latest cursor position for tick() to use, without a per-tick listener. */
   function onPointerMove(e: PointerEvent) {
-    cursor = { x: e.clientX, y: e.clientY }
+    cursor = toArena(e)
   }
 
   /**
@@ -112,8 +126,7 @@ export function useDodgingButton() {
       return false
     }
     const tickIndex = engine.getTick()
-    const hitX = e.clientX
-    const hitY = e.clientY
+    const { x: hitX, y: hitY } = toArena(e)
     const hit = engine.testHit(hitX, hitY)
     if (!hit) {
       return false
@@ -126,12 +139,18 @@ export function useDodgingButton() {
     return true
   }
 
-  /** Starts a fresh round: resets round state and spins up a new engine + tick loop for the given seed/bounds. */
-  function start(seed: number, roundBounds: Bounds) {
+  /**
+   * Starts a fresh round: resets round state and spins up a new engine +
+   * tick loop for the given seed/bounds. `arenaOrigin` is where the arena
+   * sits in the viewport (see the `origin` note above); it defaults to the
+   * viewport's own corner, i.e. an arena that isn't inset at all.
+   */
+  function start(seed: number, roundBounds: Bounds, arenaOrigin: Vec2 = { x: 0, y: 0 }) {
     samples = []
     hits = []
     clicks.value = 0
     bounds.value = roundBounds
+    origin = arenaOrigin
     cursor = { x: roundBounds.width / 2, y: roundBounds.height / 2 }
     /**
      * Screen center, matching the idle button's resting position (index.vue)
@@ -147,6 +166,18 @@ export function useDodgingButton() {
     syncFromEngine()
     window.addEventListener('pointermove', onPointerMove)
     intervalId = setInterval(tick, TICK_MS)
+  }
+
+  /**
+   * Re-points the viewport-to-arena conversion at a moved arena, without
+   * disturbing the round in flight. A round's `bounds` are frozen at its
+   * start (the server replays against them), but the arena's *position* can
+   * still shift under a mid-round window resize — the button is rendered
+   * inside the arena, so following the move keeps clicks landing where the
+   * button is actually drawn.
+   */
+  function setOrigin(arenaOrigin: Vec2) {
+    origin = arenaOrigin
   }
 
   /** Stops the tick loop and ripple timers, and returns everything recorded during the round for submission. */
@@ -176,5 +207,5 @@ export function useDodgingButton() {
     window.removeEventListener('pointermove', onPointerMove)
   })
 
-  return { x, y, ripples, clicks, bounds, radius, start, stop, handlePointerDown }
+  return { x, y, ripples, clicks, bounds, radius, start, stop, setOrigin, handlePointerDown }
 }

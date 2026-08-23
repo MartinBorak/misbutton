@@ -65,6 +65,50 @@ describe('useDodgingButton', () => {
     b.stop()
   })
 
+  it('converts pointer coordinates into arena space when the arena is inset', () => {
+    /**
+     * The play area is inset from the viewport (see main.css), so a pointer
+     * event's clientX/clientY are offset from the coordinates the engine,
+     * the recorded log and the server's replay all work in — everything
+     * downstream of here is arena-local and knows nothing about where on
+     * screen the arena sits.
+     */
+    useTickTimers()
+    const origin = { x: 24, y: 140 }
+    const dodge = useDodgingButton()
+    dodge.start(1, BOUNDS, origin)
+
+    firePointerMove(origin.x + 10, origin.y + 20)
+    vi.advanceTimersByTime(TICK_MS)
+
+    // A click on the button's rendered position, which is at x/y *within* the arena.
+    const arenaX = dodge.x.value
+    const arenaY = dodge.y.value
+    const hit = dodge.handlePointerDown({
+      clientX: origin.x + arenaX,
+      clientY: origin.y + arenaY,
+    } as PointerEvent)
+
+    const log = dodge.stop()
+    expect(log.samples).toEqual([[10, 20]])
+    expect(hit).toBe(true)
+    expect(log.hits).toEqual([{ tick: 1, x: arenaX, y: arenaY }])
+  })
+
+  it('follows the arena when setOrigin moves it mid-round', () => {
+    const dodge = useDodgingButton()
+    dodge.start(1, BOUNDS, { x: 0, y: 140 })
+    dodge.setOrigin({ x: 0, y: 96 })
+
+    const hit = dodge.handlePointerDown({
+      clientX: dodge.x.value,
+      clientY: 96 + dodge.y.value,
+    } as PointerEvent)
+
+    expect(hit).toBe(true)
+    dodge.stop()
+  })
+
   it('records a cursor sample on every tick', () => {
     useTickTimers()
     const dodge = useDodgingButton()

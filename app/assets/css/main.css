@@ -57,17 +57,32 @@ button {
 /* --- HUD --- */
 
 .hud {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
+  /* Fixed to the band height rather than sized by its contents: the arena's
+     geometry is measured once at round start and frozen into the round's
+     bounds, so a HUD that reflowed mid-round (the stats mount the instant a
+     round starts) would shift every coordinate out from under the replay. */
+  height: var(--band-top);
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
-  padding: 14px 20px;
-  z-index: 10;
-  pointer-events: none;
+  /* No vertical padding: the band's height is fixed and its contents are
+     centred in it, so padding here would only cap how tall they can get. */
+  padding: 0 20px;
+  border-bottom: 1px solid var(--color-border);
+  /* Opaque and above the modal backdrop, for the reasons in .game-footer:
+     the band stays out of the dim, and the theme toggle stays usable while
+     a modal is up. */
+  background: var(--color-bg);
+  z-index: 40;
+  /* Deliberately no `pointer-events: none` here. It was needed when the HUD
+     floated over the play field and clicks had to reach the button beneath
+     it; now the band is its own space with nothing underneath, and blocking
+     pointer events only stopped anyone from selecting the leaderboard. */
 }
 
 .hud__leaderboard {
@@ -124,15 +139,100 @@ button {
   box-shadow: var(--shadow-card);
   font-size: 1.125rem;
   line-height: 1;
+}
+
+/* --- Footer --- */
+
+.game-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  /* Fixed, for the same reason the HUD's height is — see .hud. */
+  height: var(--band-bottom);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  border-top: 1px solid var(--color-border);
+  /* Not decoration: identical to the page behind it normally, but it keeps
+     the band out of .modal-backdrop's dim. Whatever sits in a band is
+     painted above that dim either way, and muted controls on a darkened
+     strip read as disabled when they're perfectly usable. */
+  background: var(--color-bg);
+  /* Above .modal-backdrop, which covers the whole viewport, so both bands
+     stay usable while a modal is up — the footer icon is the only route to
+     the repo now, and the moment someone's most likely to want it is the
+     game-over screen. The bands stay click-through except for their own
+     controls, so nothing below them is blocked in exchange. */
+  z-index: 40;
+  pointer-events: none;
+}
+
+.game-footer__link {
+  display: flex;
+  color: var(--color-text-muted);
+  transition: color 0.2s ease;
   pointer-events: auto;
+}
+
+.game-footer__link:hover {
+  color: var(--color-text);
 }
 
 /* --- Play field / dodge button --- */
 
+/*
+ * The arena — the actual play area — is inset from the viewport by a band at
+ * the top (the HUD) and one at the bottom (the footer), and everything the
+ * engine does happens in its coordinates rather than the viewport's.
+ *
+ * The inset is what keeps the button off the viewport edge. The field wraps
+ * like a torus (see shared/evasionEngine.ts), so the button's center is just
+ * as likely to sit at y = 0 as anywhere else, and there the only clickable
+ * part of it is a sliver against the very top of the window — chasing it
+ * there means lunging into the browser's own tab bar, or into the OS dock at
+ * the bottom. The bands give that overshoot somewhere harmless to land, and
+ * they're not new dead space: they're handed to the HUD and footer, which
+ * used to float over the play area instead of beside it.
+ */
 .play-field {
+  /*
+   * Nominal band heights, capped so the arena can never shrink past the
+   * 320px floor the server clamps reported dimensions to (MIN_DIMENSION in
+   * server/api/round/start.post.ts) — below that the server would replay the
+   * round against bounds the client never rendered and reject every hit. The
+   * footer gives way first: the HUD band holds the leaderboard card and has
+   * far less room to spare, and its floor is what that card needs to fit.
+   *
+   * The four clamp bounds come from #shared/layout via pages/index.vue,
+   * because the server sizes its out-of-bounds check off the same numbers:
+   * a cursor in either band is outside the arena but perfectly legitimate,
+   * and if these two ever disagreed real rounds would be rejected.
+   */
+  --band-budget: max(0px, 100dvh - 320px);
+  --band-top: min(clamp(var(--band-top-min), 14dvh, var(--band-top-max)), var(--band-budget));
+  --band-bottom: min(
+    clamp(var(--band-bottom-min), 8dvh, var(--band-bottom-max)),
+    max(0px, var(--band-budget) - var(--band-top))
+  );
   position: relative;
   width: 100%;
   height: 100dvh;
+  overflow: hidden;
+}
+
+.arena {
+  position: absolute;
+  inset: var(--band-top) 0 var(--band-bottom);
+  /* Backstop for the same floor the band budget above maintains, in case a
+     viewport ever gets short enough to defeat it. */
+  min-height: 320px;
+  /* The button is clipped at the band edge rather than sliding under it, so
+     the bands are dead space no click can ever need to reach. The lift
+     against the page background (plus the bands' borders) is what makes that
+     edge read as the arena's boundary instead of an arbitrary cut. */
+  background: var(--color-bg-elevated);
   overflow: hidden;
 }
 
@@ -271,6 +371,10 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Dims the whole viewport, but centres the card within the arena between
+     the two bands — they paint above this, so a card centred on the viewport
+     could slide under one of them on a short window. */
+  padding: var(--band-top) 0 var(--band-bottom);
   background: rgba(10, 10, 16, 0.55);
   z-index: 20;
 }
@@ -382,33 +486,10 @@ button {
   text-decoration: none;
 }
 
-/**
- * Inside a modal the link sits below a real action ("Play again"), so a short
- * rule demotes it to a footer rather than letting it read as a second choice.
- * Drawn as a gradient rather than a border so both ends fade out instead of
- * stopping on a hard edge.
- */
-.modal-card .repo-link {
-  display: block;
-  position: relative;
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-}
-
-.modal-card .repo-link::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 85%;
-  height: 1px;
-  transform: translateX(-50%);
-  background: linear-gradient(to right, transparent, var(--color-border), transparent);
-}
-
 .error-toast {
   position: fixed;
-  bottom: 20px;
+  /* Clear of the footer band, so the two never sit on top of each other. */
+  bottom: calc(var(--band-bottom) + 20px);
   left: 50%;
   transform: translateX(-50%);
   padding: 8px 16px;
@@ -467,11 +548,11 @@ button {
   font-size: 0.9375rem;
 }
 
-/* Sits at literal viewport center — same spot the real dodge button starts
-   at (see useDodgingButton.ts's initialCenter), so there's no visual jump
-   when the round actually starts. */
+/* Sits at the arena's center — same spot the real dodge button starts at
+   (see useDodgingButton.ts's initialCenter, which is in arena coordinates),
+   so there's no visual jump when the round actually starts. */
 .idle-button {
-  position: fixed;
+  position: absolute;
   top: 50%;
   left: 50%;
   width: var(--button-diameter);

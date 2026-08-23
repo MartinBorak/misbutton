@@ -1,5 +1,8 @@
+import type { Ref } from 'vue'
+
 import type { QualificationResult } from '#shared/leaderboard'
 import { ROUND_MS } from '#shared/roundConfig'
+import { measureArena } from '~/utils/arena'
 
 export type RoundPhase = 'idle' | 'starting' | 'playing' | 'ended'
 
@@ -22,8 +25,13 @@ interface SubmitResponse extends QualificationResult {
  * Owns the round state machine (idle -> starting -> playing -> ended) and is
  * the only place that talks to /api/round/*; useDodgingButton stays free of
  * network concerns so the animation loop never waits on it.
+ *
+ * `arenaElement` is the play area a round happens inside. It's inset from the
+ * viewport by the HUD and footer bands (see app/utils/arena.ts), so its
+ * rect — not the window's — is what a round's bounds and coordinate origin
+ * come from.
  */
-export function useGameRound() {
+export function useGameRound(arenaElement?: Ref<HTMLElement | null>) {
   const dodge = useDodgingButton()
 
   const phase = ref<RoundPhase>('idle')
@@ -58,12 +66,19 @@ export function useGameRound() {
     rank.value = -1
     resultReady.value = false
 
+    /**
+     * Measured once, up front: the arena's geometry is what the round is
+     * played and replayed against, so it has to be the same snapshot that
+     * gets reported to the server and handed to the engine below.
+     */
+    const arena = measureArena(arenaElement?.value)
+
     try {
       const res = await $fetch<StartResponse>('/api/round/start', {
         method: 'POST',
         body: {
-          width: window.innerWidth,
-          height: window.innerHeight,
+          width: arena.bounds.width,
+          height: arena.bounds.height,
           webdriver: navigator.webdriver === true,
         },
       })
@@ -78,7 +93,13 @@ export function useGameRound() {
       }
       roundId = res.roundId
       token = res.token
-      dodge.start(res.seed, res.bounds)
+      /**
+       * The server's echoed bounds, not the measured ones: it rounds and
+       * clamps what it's told (see start.post.ts) and replays against the
+       * result, so the client has to play the round the server's way or
+       * every hit is rejected at submit time.
+       */
+      dodge.start(res.seed, res.bounds, arena.origin)
       deadline = Date.now() + ROUND_MS
       timeRemainingMs.value = ROUND_MS
       phase.value = 'playing'
@@ -169,13 +190,27 @@ export function useGameRound() {
     }
   }
 
+  /**
+   * A resize moves the arena (its bands are sized off the viewport), which
+   * would otherwise leave every click offset from the button it's aimed at
+   * for the rest of the round — the round's bounds stay frozen either way.
+   */
+  function onResize() {
+    if (phase.value !== 'playing') {
+      return
+    }
+    dodge.setOrigin(measureArena(arenaElement?.value).origin)
+  }
+
   onMounted(() => {
     document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('resize', onResize)
   })
 
   onUnmounted(() => {
     clearCountdown()
     document.removeEventListener('visibilitychange', onVisibilityChange)
+    window.removeEventListener('resize', onResize)
   })
 
   return {
