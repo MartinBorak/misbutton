@@ -17,7 +17,7 @@ The button's dodge is a deterministic, seeded simulation (`shared/evasionEngine.
 - **[Nuxt 4](https://nuxt.com/)** (Vue 3 + Nitro) — full-stack framework, server API routes and the client app in one codebase
 - **TypeScript** throughout, client and server
 - Plain CSS (custom properties, no UI framework, no animation library)
-- **[Vitest](https://vitest.dev/)** for unit and API-route tests
+- **[Vitest](https://vitest.dev/)** for unit, API-route, and integration tests
 - Deployed on **[Vercel](https://vercel.com/)**, with **[Upstash Redis](https://upstash.com/)** backing the leaderboard and round anti-cheat storage
 - **Vercel Web Analytics** and **Speed Insights**
 

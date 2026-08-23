@@ -18,6 +18,15 @@ const SITE_URL = 'https://misbutton.vercel.app'
 const SITE_DESCRIPTION =
   "A button that really doesn't want to be clicked. You get 60 seconds — it sees your cursor coming and dodges. How many times can you catch it?"
 
+/**
+ * Bump whenever public/og.png is regenerated. Scrapers cache preview images
+ * by URL and won't re-fetch one they've already unfurled, so replacing the
+ * file in place leaves every link already shared to Discord/Slack/X showing
+ * the old screenshot — for as long as their caches hold it. Versioning the
+ * URL is what makes it a fetch they haven't done before.
+ */
+const OG_IMAGE_VERSION = 2
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -69,7 +78,7 @@ export default defineNuxtConfig({
         { property: 'og:title', content: 'Misbutton' },
         { property: 'og:description', content: SITE_DESCRIPTION },
         { property: 'og:url', content: SITE_URL },
-        { property: 'og:image', content: `${SITE_URL}/og.png` },
+        { property: 'og:image', content: `${SITE_URL}/og.png?v=${OG_IMAGE_VERSION}` },
         { property: 'og:image:width', content: '1200' },
         { property: 'og:image:height', content: '630' },
         {
